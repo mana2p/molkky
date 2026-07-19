@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 
 /**
  * 背景環境（自然公園の雰囲気を演出）
@@ -72,8 +72,9 @@ function createTree() {
       branchY,
       Math.cos(angle) * branchLen * 0.3
     );
-    branch.rotation.z = Math.cos(angle) * 0.6;
-    branch.rotation.x = -Math.sin(angle) * 0.6;
+    // 上向きかつ外側に生えるように回転軸と符号を修正
+    branch.rotation.x = Math.cos(angle) * 0.8;
+    branch.rotation.z = -Math.sin(angle) * 0.8;
     branch.castShadow = true;
     group.add(branch);
   }

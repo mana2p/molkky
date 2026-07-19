@@ -151,9 +151,9 @@ export function createSkittle(number, x, z, scene, world, RAPIER) {
 
   const rigidBody = world.createRigidBody(bodyDesc);
 
-  // 物理コライダーの半径を実寸の80%（SKITTLE_RADIUS * 0.8）に細くします。
-  // これにより、底面積が狭くなり、棒がかすっただけでもリアルにパタパタと倒れやすくなります。
-  const physicsRadius = SKITTLE_RADIUS * 0.8;
+  // 物理コライダーの半径をメッシュと同じ（SKITTLE_RADIUS）に修正。
+  // これにより、倒れたときにメッシュが地面にめり込む（沈み込む）バグを解消します。
+  const physicsRadius = SKITTLE_RADIUS;
   const colliderDesc = RAPIER.ColliderDesc.cylinder(
     SKITTLE_HALF_HEIGHT,
     physicsRadius
