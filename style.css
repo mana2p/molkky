@@ -441,7 +441,7 @@ canvas {
 .hud-turn-info {
   position: absolute;
   top: 16px;
-  left: 16px;
+  left: 68px;
   padding: 10px 16px;
   border-radius: var(--radius-sm);
   font-size: 13px;
