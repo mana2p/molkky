@@ -42,10 +42,11 @@ export class CPUController {
     const pull = this._calculatePullForTarget(targetPos.x, targetPos.z, startX, startZ);
 
     // 3. 人間味（ブレ）を追加
-    // 引っ張り量に対して ±10px 程度のブレを入れることでリアルなコントロールミスを再現
-    const pixelNoise = 10.0;
-    pull.dx += (Math.random() - 0.5) * 2 * pixelNoise;
-    pull.dy += (Math.random() - 0.5) * 2 * pixelNoise;
+    // pull は NDC（-1.0 〜 1.0）のスケール。
+    // 画面幅1000pxと仮定した場合、±10pxのブレは約0.02NDCに相当する。
+    const ndcNoise = 0.02;
+    pull.dx += (Math.random() - 0.5) * 2 * ndcNoise;
+    pull.dy += (Math.random() - 0.5) * 2 * ndcNoise;
 
     // 4. アニメーション（徐々に引っ張る）して投げる
     this._simulatePullAndThrow(pull.dx, pull.dy, onComplete);
