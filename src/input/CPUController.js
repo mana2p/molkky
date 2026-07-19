@@ -57,6 +57,9 @@ export class CPUController {
 
     pull.dx += (Math.random() - 0.5) * 2 * ndcNoise;
     pull.dy += (Math.random() - 0.5) * 2 * ndcNoise;
+    
+    // Y方向（前進方向）がマイナスになると後ろ向きに投げてしまうため、最小値を担保する
+    pull.dy = Math.max(0.01, pull.dy);
 
     // 4. アニメーション（徐々に引っ張る）して投げる
     this._simulatePullAndThrow(pull.dx, pull.dy, onComplete);
@@ -80,9 +83,15 @@ export class CPUController {
     const playstyle = this._determinePlaystyle(currentScore, opponents);
     console.log(`[CPU] 現在のプレイスタイル: ${playstyle} (現在の点数: ${currentScore}, 残り: ${needed})`);
 
+    // 1.5 爆弾の位置を取得（存在する場合）
+    let bombPos = null;
+    if (this.gameState.gimmickManager && this.gameState.gimmickManager.bombGroup && this.gameState.gimmickManager.bombGroup.visible) {
+      bombPos = this.gameState.gimmickManager.bombPos;
+    }
+
     // 2. 各スキットルをターゲットとした場合の評価（おすすめ度）を計算
     const evaluatedTargets = activeSkittles.map(s => 
-      this._evaluateTarget(s, activeSkittles, needed, startX, startZ, playstyle, opponents, currentScore)
+      this._evaluateTarget(s, activeSkittles, needed, startX, startZ, playstyle, opponents, currentScore, bombPos)
     );
     
     // 評価が高い順にソート
@@ -309,7 +318,7 @@ export class CPUController {
     return riskPenalty;
   }
 
-  _evaluateTarget(targetSkittle, activeSkittles, needed, startX, startZ, playstyle, opponents, currentScore) {
+  _evaluateTarget(targetSkittle, activeSkittles, needed, startX, startZ, playstyle, opponents, currentScore, bombPos) {
     const clusterInfo = this._getClusterInfo(targetSkittle, activeSkittles, 1.5);
     const { aimX, aimZ, clusterCount } = clusterInfo;
     
@@ -383,6 +392,20 @@ export class CPUController {
       // 相手への塩送り防止ペナルティを適用
       const riskPenalty = this._evalOpponentSetupRisk(expectedScore, currentScore, opponents, activeSkittles);
       score -= riskPenalty;
+
+      // 爆弾の考慮
+      if (bombPos) {
+        const distToBomb = Math.sqrt((aimX - bombPos.x) ** 2 + (aimZ - bombPos.z) ** 2);
+        if (distToBomb < 5.5) { // 爆発の巻き込み範囲
+          if (needed <= 12 || playstyle === 'LEAD') {
+            // 正確な点数が欲しい時や安全重視の時は爆弾を避ける
+            score -= 1000;
+          } else if (playstyle === 'CHASE') {
+            // 負けている時は爆弾に巻き込んで大逆転・かく乱を狙う
+            score += 500;
+          }
+        }
+      }
     }
 
     return { 

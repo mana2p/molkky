@@ -119,7 +119,7 @@ function replay() {
     color: p.color,
     isCpu: p.isCpu,
   }));
-  startGame(configs);
+  startGame(configs, gameState.gameMode);
 }
 
 function backToMenu() {

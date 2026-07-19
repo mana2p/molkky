@@ -243,7 +243,7 @@ export class GimmickManager {
 
       const maxRadius = 5.5;
       if (dist < maxRadius) {
-        const force = (maxRadius - dist) * 0.28; // 非常にマイルドな押し出し力
+        const force = (maxRadius - dist) * 0.42; // 威力を1.5倍に強化（0.28 -> 0.42）
         const dirX = dist > 0.001 ? dx / dist : 0;
         const dirZ = dist > 0.001 ? dz / dist : 1;
 
