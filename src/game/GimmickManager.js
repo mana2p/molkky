@@ -272,11 +272,15 @@ export class GimmickManager {
   }
 
   /** UFOフル演出（飛来 → 吸い上げ → 空中移動 → 地面へ安全着陸ドロップ → 離脱） */
-  triggerUFOAbduction(skittles, cameraController, onComplete) {
-    const isUFO = this.currentMode === GAME_MODES.UFO || this.currentMode === GAME_MODES.CHAOS;
-    if (!isUFO || !this.ufoGroup || this.ufoAnimating) {
+  triggerUFOAbduction(turn, skittles, cameraController, onComplete) {
+    const isUFO = this.currentMode === GAME_MODES.UFO || this.currentMode === GAME_MODES.CHAOS || turn >= 50;
+    if (!isUFO || this.ufoAnimating) {
       if (onComplete) onComplete();
       return;
+    }
+
+    if (!this.ufoGroup) {
+      this._initUFO();
     }
 
     const activeSkittles = skittles.filter(s => s.body);
@@ -287,53 +291,9 @@ export class GimmickManager {
 
     this.ufoAnimating = true;
 
-    // 「遠くに行きすぎた」スキットルを優先して選ぶ
-    let targetSkittle = null;
-    const DISTANCE_THRESHOLD_SQ = 15.0 * 15.0; // 15.0 (1.5m) 以上を「遠すぎる」と判定
-    
-    // 原点からの距離の降順でソート
-    const sortedSkittles = [...activeSkittles].sort((a, b) => {
-      const pa = a.body.translation();
-      const pb = b.body.translation();
-      return (pb.x * pb.x + pb.z * pb.z) - (pa.x * pa.x + pa.z * pa.z);
-    });
-
-    const furthest = sortedSkittles[0];
-    const fPos = furthest.body.translation();
-    const furthestDistSq = fPos.x * fPos.x + fPos.z * fPos.z;
-
-    if (furthestDistSq > DISTANCE_THRESHOLD_SQ) {
-      targetSkittle = furthest;
-      console.log(`[Gimmick] 🛸 遠すぎスキットル発見！(距離: ${Math.sqrt(furthestDistSq).toFixed(1)}) -> 優先して回収します`);
-    } else {
-      // 遠すぎるものがなければランダム
-      targetSkittle = activeSkittles[Math.floor(Math.random() * activeSkittles.length)];
-    }
-
+    const targetSkittle = this._findUFOTarget(activeSkittles);
     const targetPos = targetSkittle.body.translation();
-
-    // 再配置先の安全なランダム座標を探す（他のスキットルと重なって倒さないようにする）
-    let newX = 0, newZ = 0;
-    for (let attempt = 0; attempt < 30; attempt++) {
-      newX = (Math.random() - 0.5) * 8.0;
-      newZ = (Math.random() - 0.5) * 5.0 - 0.5;
-      
-      let isSafe = activeSkittles.every(s => {
-        if (s === targetSkittle || !s.body) return true;
-        const pos = s.body.translation();
-        // 密集地帯を避けるための安全距離 (1.8 = 0.18m)
-        return Math.sqrt((pos.x - newX) ** 2 + (pos.z - newZ) ** 2) > 1.8;
-      });
-      
-      // 爆弾がある場合は、爆弾の上にも落とさないようにする
-      if (isSafe && this.bombGroup && this.bombGroup.visible) {
-        if (Math.sqrt((this.bombPos.x - newX) ** 2 + (this.bombPos.z - newZ) ** 2) <= 1.8) {
-          isSafe = false;
-        }
-      }
-      
-      if (isSafe) break;
-    }
+    const { newX, newZ } = this._findUFOSafeDropLocation(activeSkittles, targetSkittle);
 
     console.log(`[Gimmick] 🛸 UFOが ${targetSkittle.number}番 スキットルを移送中...`);
 
@@ -483,6 +443,54 @@ export class GimmickManager {
     };
 
     animateArrival();
+  }
+
+  _findUFOTarget(activeSkittles) {
+    const DISTANCE_THRESHOLD_SQ = 15.0 * 15.0; // 15.0 (1.5m) 以上を「遠すぎる」と判定
+    
+    // 原点からの距離の降順でソート
+    const sortedSkittles = [...activeSkittles].sort((a, b) => {
+      const pa = a.body.translation();
+      const pb = b.body.translation();
+      return (pb.x * pb.x + pb.z * pb.z) - (pa.x * pa.x + pa.z * pa.z);
+    });
+
+    const furthest = sortedSkittles[0];
+    const fPos = furthest.body.translation();
+    const furthestDistSq = fPos.x * fPos.x + fPos.z * fPos.z;
+
+    if (furthestDistSq > DISTANCE_THRESHOLD_SQ) {
+      console.log(`[Gimmick] 🛸 遠すぎスキットル発見！(距離: ${Math.sqrt(furthestDistSq).toFixed(1)}) -> 優先して回収します`);
+      return furthest;
+    }
+    
+    // 遠すぎるものがなければランダム
+    return activeSkittles[Math.floor(Math.random() * activeSkittles.length)];
+  }
+
+  _findUFOSafeDropLocation(activeSkittles, targetSkittle) {
+    let newX = 0, newZ = 0;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      newX = (Math.random() - 0.5) * 8.0;
+      newZ = (Math.random() - 0.5) * 5.0 - 0.5;
+      
+      let isSafe = activeSkittles.every(s => {
+        if (s === targetSkittle || !s.body) return true;
+        const pos = s.body.translation();
+        // 密集地帯を避けるための安全距離 (1.8 = 0.18m)
+        return Math.sqrt((pos.x - newX) ** 2 + (pos.z - newZ) ** 2) > 1.8;
+      });
+      
+      // 爆弾がある場合は、爆弾の上にも落とさないようにする
+      if (isSafe && this.bombGroup && this.bombGroup.visible) {
+        if (Math.sqrt((this.bombPos.x - newX) ** 2 + (this.bombPos.z - newZ) ** 2) <= 1.8) {
+          isSafe = false;
+        }
+      }
+      
+      if (isSafe) break;
+    }
+    return { newX, newZ };
   }
 }
 

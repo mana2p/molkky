@@ -9,6 +9,7 @@ import {
   RESTITUTION,
   FRICTION,
 } from '../constants.js';
+import { GamePhase } from '../game/GameState.js';
 
 let stickMesh = null;
 let stickBody = null;
@@ -105,4 +106,44 @@ export function throwStick(body, RAPIER, velocity) {
   
   // モルック特有の回転（縦スピン）を加える（X軸周りに約3回転/秒の回転速度を与える）
   body.setAngvel(new RAPIER.Vector3(-20.0, 0, 0), true);
+}
+
+export function syncMolkkyStickMesh(stickData, gamePhase) {
+  if (!stickData) return;
+  const pos = stickData.body.translation();
+  const rot = stickData.body.rotation();
+  stickData.mesh.position.set(pos.x, pos.y, pos.z);
+  stickData.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+
+  if ((gamePhase === GamePhase.THROWING || gamePhase === GamePhase.SETTLING) && pos.y < 0.45) {
+    stickData.body.setLinearDamping(0.8);
+    stickData.body.setAngularDamping(4.0);
+  } else if (gamePhase === GamePhase.READY || gamePhase === GamePhase.THROWING || gamePhase === GamePhase.SETTLING) {
+    stickData.body.setLinearDamping(0.0);
+    stickData.body.setAngularDamping(0.10);
+  }
+}
+
+export function isMolkkyStickSettled(stickData, settleFrames, RAPIER) {
+  if (!stickData) return true;
+
+  const pos = stickData.body.translation();
+  const linvel = stickData.body.linvel();
+  const angvel = stickData.body.angvel();
+  const speed = Math.sqrt(linvel.x ** 2 + linvel.y ** 2 + linvel.z ** 2);
+  const angSpeed = Math.sqrt(angvel.x ** 2 + angvel.y ** 2 + angvel.z ** 2);
+
+  if (pos.y > 0.6 || settleFrames < 30) {
+    return false;
+  }
+
+  if (speed < 0.3 && angSpeed < 0.5) {
+    if (speed > 0 || angSpeed > 0) {
+      stickData.body.setLinvel(new RAPIER.Vector3(0, 0, 0), true);
+      stickData.body.setAngvel(new RAPIER.Vector3(0, 0, 0), true);
+      stickData.body.sleep();
+    }
+    return true;
+  }
+  return false;
 }

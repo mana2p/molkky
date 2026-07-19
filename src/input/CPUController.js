@@ -10,6 +10,16 @@ import {
   WIN_SCORE
 } from '../constants.js';
 
+const PENALTY_UNREACHABLE = -50000;
+const BONUS_FINISH = 10000;
+const PENALTY_BURST = -10000;
+const PENALTY_BOMB = -1000;
+const BONUS_BOMB_CHASE = 3000;
+const BONUS_BOMB_BALANCED = 1500;
+const BONUS_MULTI_TURN_EXCELLENT = 5000;
+const BONUS_MULTI_TURN_GOOD = 3000;
+const PENALTY_SABOTAGE_RISK = 100;
+
 export class CPUController {
   constructor(throwController, skittleManager, gameState) {
     this.throwController = throwController;
@@ -114,7 +124,7 @@ export class CPUController {
     }
 
     // 4. 即上がりできる場合は最優先
-    if (bestTarget.score >= 10000) {
+    if (bestTarget.score >= BONUS_FINISH) {
       console.log(`[CPU] 🏆 フィニッシュ！ ${bestTarget.target.number}番 を狙って上がりを決めます！`);
       return {
         target: bestTarget.target,
@@ -124,62 +134,9 @@ export class CPUController {
     }
 
     // 5. 他プレイヤーの妨害（サボタージュ）
-    const sortedOpponents = [...opponents].sort((a, b) => b.score - a.score);
-
-    for (const opp of sortedOpponents) {
-      const oppNeeded = WIN_SCORE - opp.score;
-      if (oppNeeded <= 12) {
-        const dangerSkittle = activeSkittles.find(s => s.number === oppNeeded);
-        if (dangerSkittle) {
-          const dangerPos = dangerSkittle.body.translation();
-          let clusterCount = 0;
-          for (const s of activeSkittles) {
-            const pos = s.body.translation();
-            const dist = Math.sqrt((pos.x - dangerPos.x) ** 2 + (pos.z - dangerPos.z) ** 2);
-            if (dist < 1.5) clusterCount++;
-          }
-          
-          if (clusterCount === 1) { // 孤立している＝相手が上がりやすい
-            let closestDist = Infinity;
-            let sabotageTarget = null;
-            for (const s of activeSkittles) {
-              if (s.number === dangerSkittle.number) continue;
-              const pos = s.body.translation();
-              if (pos.z > dangerPos.z + 0.2) continue; // 後ろのスキットルは除外
-
-              const dist = Math.sqrt((pos.x - dangerPos.x) ** 2 + (pos.z - dangerPos.z) ** 2);
-              if (dist < closestDist) {
-                closestDist = dist;
-                sabotageTarget = s;
-              }
-            }
-            
-            if (sabotageTarget && closestDist < 3.0) {
-              const sabotageEval = evaluatedTargets.find(e => e.target === sabotageTarget);
-              if (sabotageEval && sabotageEval.isReachable) {
-                console.log(`[CPU] 🛡️ 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 の手前にある ${sabotageTarget.number}番 を狙って崩します！`);
-                return {
-                  target: sabotageTarget,
-                  aimX: sabotageEval.aimX,
-                  aimZ: sabotageEval.aimZ
-                };
-              }
-            }
-            
-            const dangerEval = evaluatedTargets.find(e => e.target === dangerSkittle);
-            if (dangerEval && dangerEval.isReachable) {
-              console.log(`[CPU] 🛡️ 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 を直接潰します！`);
-              return {
-                target: dangerSkittle,
-                aimX: dangerEval.aimX,
-                aimZ: dangerEval.aimZ
-              };
-            }
-            
-            console.log(`[CPU] 妨害対象が遠すぎるためサボタージュをスキップ`);
-          }
-        }
-      }
+    const sabotageTarget = this._findSabotageTarget(evaluatedTargets, opponents, activeSkittles, needed);
+    if (sabotageTarget) {
+      return sabotageTarget;
     }
 
     // 6. 通常のスコア稼ぎ（マルチターン計画・重心狙い・攻守スタイル反映）
@@ -193,6 +150,67 @@ export class CPUController {
       aimX: selected.aimX,
       aimZ: selected.aimZ
     };
+  }
+
+  _findSabotageTarget(evaluatedTargets, opponents, activeSkittles, needed) {
+    const sortedOpponents = [...opponents].sort((a, b) => b.score - a.score);
+
+    for (const opp of sortedOpponents) {
+      const oppNeeded = WIN_SCORE - opp.score;
+      if (oppNeeded <= 12) {
+        const dangerSkittle = activeSkittles.find(s => s.number === oppNeeded);
+        if (dangerSkittle) {
+          const dangerEval = evaluatedTargets.find(e => e.target === dangerSkittle);
+          
+          // 既に密集している場合、相手はピンポイントでこの数字を取れない（倒れた本数が点数になる）ため妨害不要
+          if (dangerEval && dangerEval.clusterCount > 1) {
+            console.log(`[CPU] 🛡️ ${opp.name} の上がり目 ${dangerSkittle.number}番 は密集地帯にあり安全なため、妨害をスキップします`);
+            continue;
+          }
+          
+          // 1. 直接狙うのが最も確実。自分がバーストしない（期待スコア <= 自分の残り点数）なら直接潰す！
+          if (dangerEval && dangerEval.isReachable && dangerEval.expectedScore <= needed) {
+            console.log(`[CPU] 🛡️ 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 を直接狙って潰します！`);
+            return {
+              target: dangerSkittle,
+              aimX: dangerEval.aimX,
+              aimZ: dangerEval.aimZ
+            };
+          }
+
+          // 2. 直接狙うと自分がバーストしてしまう場合、手前のスキットルを当てて巻き込む（ビリヤード）
+          const dangerPos = dangerSkittle.body.translation();
+          let closestDist = Infinity;
+          let sabotageTarget = null;
+          
+          for (const s of activeSkittles) {
+            if (s.number === dangerSkittle.number) continue;
+            const pos = s.body.translation();
+            if (pos.z > dangerPos.z + 0.1) continue; // 後ろのスキットルは除外
+
+            const dist = Math.sqrt((pos.x - dangerPos.x) ** 2 + (pos.z - dangerPos.z) ** 2);
+            if (dist < closestDist) {
+              closestDist = dist;
+              sabotageTarget = s;
+            }
+          }
+          
+          // 距離が近め（2.0以内）ならビリヤードを狙う
+          if (sabotageTarget && closestDist < 2.0) {
+            const sabotageEval = evaluatedTargets.find(e => e.target === sabotageTarget);
+            if (sabotageEval && sabotageEval.isReachable && sabotageEval.expectedScore <= needed) {
+              console.log(`[CPU] 🛡️ 妨害発動！自分がバーストするため、手前の ${sabotageTarget.number}番 を当てて ${dangerSkittle.number}番 を巻き込みます！`);
+              return {
+                target: sabotageTarget,
+                aimX: sabotageEval.aimX,
+                aimZ: sabotageEval.aimZ
+              };
+            }
+          }
+        }
+      }
+    }
+    return null;
   }
 
   /**
@@ -278,7 +296,7 @@ export class CPUController {
       if (setupTarget) {
         const spos = setupTarget.body.translation();
         const isolated = activeSkittles.every(s => s === setupTarget || Math.sqrt((spos.x - s.body.translation().x) ** 2 + (spos.z - s.body.translation().z) ** 2) >= 1.5);
-        if (isolated) return 5000; // 2ターン即上がり絶好ルート
+        if (isolated) return BONUS_MULTI_TURN_EXCELLENT; // 2ターン即上がり絶好ルート
       }
     }
 
@@ -290,7 +308,7 @@ export class CPUController {
         const t1Exist = activeSkittles.some(s => s.number === firstTurn);
         const t2Exist = activeSkittles.some(s => s.number === secondTurnNeeded);
         if (t1Exist && t2Exist) {
-          bestMultiScore = Math.max(bestMultiScore, 3000);
+          bestMultiScore = Math.max(bestMultiScore, BONUS_MULTI_TURN_GOOD);
         }
       }
     }
@@ -311,7 +329,7 @@ export class CPUController {
       if (oppNeeded <= 12) {
         const dangerSkittle = activeSkittles.find(s => s.number === oppNeeded);
         if (dangerSkittle) {
-          riskPenalty += 100;
+          riskPenalty += PENALTY_SABOTAGE_RISK;
         }
       }
     }
@@ -323,24 +341,7 @@ export class CPUController {
     const { aimX, aimZ, clusterCount } = clusterInfo;
     
     // --- 届くかどうかの事前チェック ---
-    const deltaX = aimX - startX;
-    const deltaZ = aimZ - startZ;
-    const adjustedDeltaX = deltaX / THROW_X_FACTOR;
-    const adjustedDeltaZ = deltaZ / THROW_Z_FACTOR;
-    const adjustedDist = Math.sqrt(adjustedDeltaX ** 2 + adjustedDeltaZ ** 2);
-    
-    let isReachable = true;
-    if (adjustedDist > 0.001) {
-      const dirY = adjustedDeltaZ / adjustedDist;
-      const throwY = THROW_MAX_POWER * THROW_Y_FACTOR;
-      const throwZ = dirY * THROW_MAX_POWER * THROW_Z_FACTOR;
-      const g = 9.81;
-      const maxT = (throwY + Math.sqrt(throwY ** 2 + 2 * g * THROW_HEIGHT)) / g;
-      const maxPredictedZ = startZ + throwZ * maxT;
-      if (maxPredictedZ < aimZ - 1.0) {
-        isReachable = false;
-      }
-    }
+    const isReachable = this._isTargetReachable(aimX, aimZ, startX, startZ);
 
     // 期待スコア（単体なら番号、密集なら本数）
     const expectedScore = clusterCount === 1 ? targetSkittle.number : clusterCount;
@@ -349,63 +350,22 @@ export class CPUController {
 
     // ① 届かないターゲットへのペナルティ（最優先で回避）
     if (!isReachable) {
-      score -= 50000;
+      score += PENALTY_UNREACHABLE;
     }
-
     // ② 即上がり
-    if (expectedScore === needed) {
-      score += 10000; // 最高評価
+    else if (expectedScore === needed) {
+      score += BONUS_FINISH; // 最高評価
     }
     // ③ バースト（負け確定なので絶対に避ける）
     else if (expectedScore > needed) {
-      score -= 10000;
+      score += PENALTY_BURST;
     }
     // ④ 通常の評価計算
     else {
-      // プレイスタイル補正
-      if (playstyle === 'LEAD') {
-        // リード時: 安全重視。密集地帯（clusterCount > 1）の評価を大きくアップ
-        if (clusterCount > 1) {
-          score += clusterCount * 40;
-        } else {
-          score += targetSkittle.number * 5; // 単体狙いの優先度を下げる
-        }
-      } else if (playstyle === 'CHASE') {
-        // 追撃時: 逆転狙い。高得点単体ピン（10〜12番）や大クラスターを強く評価
-        if (clusterCount === 1 && targetSkittle.number >= 10) {
-          score += targetSkittle.number * 25;
-        } else {
-          score += expectedScore * 15;
-        }
-      } else {
-        // BALANCED
-        score += expectedScore * 10;
-        if (clusterCount > 1) {
-          score += clusterCount * 15;
-        }
-      }
-
-      // マルチターン（2〜3ターン先）の計算結果を加算
-      const multiTurnBonus = this._evalMultiTurnPlan(expectedScore, needed, activeSkittles, targetSkittle);
-      score += multiTurnBonus;
-
-      // 相手への塩送り防止ペナルティを適用
-      const riskPenalty = this._evalOpponentSetupRisk(expectedScore, currentScore, opponents, activeSkittles);
-      score -= riskPenalty;
-
-      // 爆弾の考慮
-      if (bombPos) {
-        const distToBomb = Math.sqrt((aimX - bombPos.x) ** 2 + (aimZ - bombPos.z) ** 2);
-        if (distToBomb < 5.5) { // 爆発の巻き込み範囲
-          if (needed <= 12 || playstyle === 'LEAD') {
-            // 正確な点数が欲しい時や安全重視の時は爆弾を避ける
-            score -= 1000;
-          } else if (playstyle === 'CHASE') {
-            // 負けている時は爆弾に巻き込んで大逆転・かく乱を狙う
-            score += 500;
-          }
-        }
-      }
+      score += this._calculateBaseScore(expectedScore, clusterCount, playstyle, targetSkittle);
+      score += this._evalMultiTurnPlan(expectedScore, needed, activeSkittles, targetSkittle);
+      score -= this._evalOpponentSetupRisk(expectedScore, currentScore, opponents, activeSkittles);
+      score += this._calcBombPenalty(bombPos, aimX, aimZ, needed, playstyle);
     }
 
     return { 
@@ -417,6 +377,66 @@ export class CPUController {
       isReachable: isReachable, 
       clusterCount: clusterCount 
     };
+  }
+
+  _isTargetReachable(aimX, aimZ, startX, startZ) {
+    const deltaX = aimX - startX;
+    const deltaZ = aimZ - startZ;
+    const adjustedDeltaX = deltaX / THROW_X_FACTOR;
+    const adjustedDeltaZ = deltaZ / THROW_Z_FACTOR;
+    const adjustedDist = Math.sqrt(adjustedDeltaX ** 2 + adjustedDeltaZ ** 2);
+    
+    if (adjustedDist <= 0.001) return true;
+
+    const dirY = adjustedDeltaZ / adjustedDist;
+    const throwY = THROW_MAX_POWER * THROW_Y_FACTOR;
+    const throwZ = dirY * THROW_MAX_POWER * THROW_Z_FACTOR;
+    const g = 9.81;
+    const maxT = (throwY + Math.sqrt(throwY ** 2 + 2 * g * THROW_HEIGHT)) / g;
+    const maxPredictedZ = startZ + throwZ * maxT;
+    
+    return maxPredictedZ >= aimZ - 1.0;
+  }
+
+  _calculateBaseScore(expectedScore, clusterCount, playstyle, targetSkittle) {
+    let score = 0;
+    if (playstyle === 'LEAD') {
+      if (clusterCount > 1) {
+        score += clusterCount * 40;
+      } else {
+        score += targetSkittle.number * 5;
+      }
+    } else if (playstyle === 'CHASE') {
+      if (clusterCount === 1 && targetSkittle.number >= 10) {
+        score += targetSkittle.number * 25;
+      } else {
+        score += expectedScore * 15;
+      }
+    } else {
+      score += expectedScore * 10;
+      if (clusterCount > 1) {
+        score += clusterCount * 15;
+      }
+    }
+    return score;
+  }
+
+  _calcBombPenalty(bombPos, aimX, aimZ, needed, playstyle) {
+    if (!bombPos) return 0;
+    
+    const distToBomb = Math.sqrt((aimX - bombPos.x) ** 2 + (aimZ - bombPos.z) ** 2);
+    if (distToBomb < 5.5) {
+      if (needed <= 12) {
+        return PENALTY_BOMB;
+      } else if (playstyle === 'LEAD') {
+        return PENALTY_BOMB;
+      } else if (playstyle === 'CHASE') {
+        return BONUS_BOMB_CHASE;
+      } else {
+        return BONUS_BOMB_BALANCED;
+      }
+    }
+    return 0;
   }
 
   _calculatePullForTarget(targetX, targetZ, startX, startZ) {

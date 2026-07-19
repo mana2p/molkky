@@ -2,7 +2,7 @@ import { initPhysics, stepPhysics, getRapier } from './physics/PhysicsWorld.js';
 import { initScene, renderScene, getCamera } from './scene/SceneSetup.js';
 import { createGround } from './scene/Ground.js';
 import { createEnvironment } from './scene/Environment.js';
-import { createMolkkyStick, resetStick, throwStick } from './scene/MolkkyStick.js';
+import { createMolkkyStick, resetStick, throwStick, syncMolkkyStickMesh, isMolkkyStickSettled } from './scene/MolkkyStick.js';
 import { ThrowController } from './input/ThrowController.js';
 import { GameState, GamePhase } from './game/GameState.js';
 import { SkittleManager } from './game/SkittleManager.js';
@@ -164,7 +164,7 @@ function gameLoop() {
     gimmickManager.update(stickData ? stickData.body : null, skittleManager.skittles);
   }
   skittleManager.syncMeshes();
-  syncStickMesh();
+  syncMolkkyStickMesh(stickData, gameState.phase);
   cameraController.update();
   particleSystem.update();
   renderScene();
@@ -218,7 +218,7 @@ function handleSettling() {
   const timedOut = gameState.settleFrames > SETTLE_MIN_FRAMES * 3;
   const allSettled = gameState.settleFrames >= SETTLE_MIN_FRAMES
     && skittleManager.areAllSettled()
-    && isStickSettled();
+    && isMolkkyStickSettled(stickData, gameState.settleFrames, getRapier());
 
   if (timedOut || allSettled) {
     const toppledPositions = skittleManager.getToppledPositions();
@@ -267,36 +267,14 @@ function handleSettling() {
   }
 }
 
-function isStickSettled() {
-  if (!stickData) return true;
 
-  const pos = stickData.body.translation();
-  const linvel = stickData.body.linvel();
-  const angvel = stickData.body.angvel();
-  const speed = Math.sqrt(linvel.x ** 2 + linvel.y ** 2 + linvel.z ** 2);
-  const angSpeed = Math.sqrt(angvel.x ** 2 + angvel.y ** 2 + angvel.z ** 2);
-
-  if (pos.y > 0.6 || gameState.settleFrames < 30) {
-    return false;
-  }
-
-  if (speed < 0.3 && angSpeed < 0.5) {
-    if (speed > 0 || angSpeed > 0) {
-      stickData.body.setLinvel(new (getRapier().Vector3)(0, 0, 0), true);
-      stickData.body.setAngvel(new (getRapier().Vector3)(0, 0, 0), true);
-      stickData.body.sleep();
-    }
-    return true;
-  }
-  return false;
-}
 
 function proceedToNextTurn() {
   skittleManager.resetToppled();
   resetStick(stickData.body, getRapier());
 
   if (gimmickManager) {
-    gimmickManager.triggerUFOAbduction(skittleManager.skittles, cameraController, () => {
+    gimmickManager.triggerUFOAbduction(gameState.turn, skittleManager.skittles, cameraController, () => {
       finishProceedTurn();
     });
   } else {
@@ -322,24 +300,7 @@ function finishProceedTurn() {
   gameUI.hideMessage();
 }
 
-function syncStickMesh() {
-  if (!stickData) return;
-  const pos = stickData.body.translation();
-  const rot = stickData.body.rotation();
-  stickData.mesh.position.set(pos.x, pos.y, pos.z);
-  stickData.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
 
-  // 着地後（高さが一定以下）は草むらの強い抵抗（ダンピング）をかけて、不自然な斜め転がりを防ぐ
-  // モルック棒の半径は0.275なので、0.4以下なら地面に接触していると判定
-  if ((gameState.phase === GamePhase.THROWING || gameState.phase === GamePhase.SETTLING) && pos.y < 0.45) {
-    stickData.body.setLinearDamping(0.8);
-    stickData.body.setAngularDamping(4.0); // 回転への抵抗をかなり強くして転がりを止める
-  } else if (gameState.phase === GamePhase.READY || gameState.phase === GamePhase.THROWING || gameState.phase === GamePhase.SETTLING) {
-    // 構え中および空中（スキットル衝突でバウンド中など）の間は空気抵抗をリセット
-    stickData.body.setLinearDamping(0.0);
-    stickData.body.setAngularDamping(0.10);
-  }
-}
 
 function updateAimAndPower() {
   if (gameState && gameState.phase === GamePhase.READY && throwController) {
