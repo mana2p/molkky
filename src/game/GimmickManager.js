@@ -61,18 +61,13 @@ export class GimmickManager {
     this.ufoAnimating = false;
   }
 
-  /** ターン開始時の処理（ランダムなターンで爆弾配置） */
+  /** ターン開始時の処理（一定確率で爆弾を配置） */
   onTurnStart(turnNumber, skittles) {
     const isBomb = this.currentMode === GAME_MODES.BOMB || this.currentMode === GAME_MODES.CHAOS;
     if (isBomb) {
-      if (this.bombCooldown === undefined) {
-        this.bombCooldown = Math.floor(Math.random() * 3) + 3; // 3 to 5
-      }
-      
-      this.bombCooldown--;
-      if (this.bombCooldown <= 0 || !this.bombGroup) {
+      // 毎ターン約33%の確率で爆弾が出現・または移動する
+      if (Math.random() < 0.33) {
         this.spawnBombAtRandomPos(skittles);
-        this.bombCooldown = Math.floor(Math.random() * 3) + 3; // Reset to 3-5
       }
     }
   }
@@ -134,7 +129,10 @@ export class GimmickManager {
 
     this.bombGroup.position.set(this.bombPos.x, this.bombPos.y, this.bombPos.z);
     this.scene.add(this.bombGroup);
-    this.bombExploded = false;
+    
+    // 初手で必ず出現しないよう、初期状態は隠す
+    this.bombGroup.visible = false;
+    this.bombExploded = true;
   }
 
   // ===== UFO =====
