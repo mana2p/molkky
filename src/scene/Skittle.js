@@ -18,13 +18,13 @@ function createNumberTexture(number) {
   ctx.clearRect(0, 0, 256, 256);
 
   // 焼印の刻印感を出すための「にじみ」シャドウ（焦げ跡のぼかし）
-  ctx.shadowColor = 'rgba(30, 10, 0, 0.6)';
-  ctx.shadowBlur = 12;
+  ctx.shadowColor = 'rgba(10, 5, 0, 0.8)';
+  ctx.shadowBlur = 14;
   ctx.shadowOffsetX = 2;
   ctx.shadowOffsetY = 2;
 
   // 番号テキスト（焦げ茶色＝焼き印の色）
-  ctx.fillStyle = '#3a1a00';
+  ctx.fillStyle = '#1a0a00';
   ctx.font = 'bold 185px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -34,8 +34,8 @@ function createNumberTexture(number) {
   ctx.shadowBlur = 6;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
-  ctx.shadowColor = 'rgba(60, 20, 0, 0.4)';
-  ctx.fillStyle = '#4a2200';
+  ctx.shadowColor = 'rgba(20, 5, 0, 0.6)';
+  ctx.fillStyle = '#200c00';
   ctx.fillText(String(number), 128, 128);
 
   const texture = new THREE.CanvasTexture(canvas);
