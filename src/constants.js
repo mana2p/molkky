@@ -73,8 +73,8 @@ export const TOPPLE_THRESHOLD = 0.5;
 
 // ===== 静止判定 =====
 export const SETTLE_VELOCITY_THRESHOLD = 0.08;
-/** テンポアップしつつ、ぐらぐらの途中で判定されないように十分な時間を確保 (90 -> 150 = 2.5秒) */
-export const SETTLE_MIN_FRAMES = 150;
+/** テンポアップしつつ、ぐらぐらの途中で判定されないように十分な時間を確保 (120 = 2.0秒) */
+export const SETTLE_MIN_FRAMES = 120;
 
 // ===== 物理マテリアル =====
 /** スキットル質量: 200g（リアル寄り） */

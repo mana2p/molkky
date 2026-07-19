@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -8,8 +9,11 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Noto+Sans+JP:wght@400;600;700&display=swap"
+    rel="stylesheet">
 </head>
+
 <body>
   <div id="app"></div>
 
@@ -47,11 +51,12 @@
       </div>
       <div class="game-mode-selector" style="margin-bottom: 15px;">
         <label style="display:block; margin-bottom:6px; font-weight:bold;">🎮 ゲームモード:</label>
-        <select id="select-game-mode" class="mode-select-dropdown" style="width:100%; padding:10px; border-radius:8px; background:rgba(0,0,0,0.5); color:#fff; border:1px solid rgba(255,255,255,0.3); font-size:1rem;">
-          <option value="NORMAL">🎯 通常モード (ノーマル)</option>
-          <option value="BOMB">💣 TNT爆弾 (3ターンごとにマイルドな爆弾が出現)</option>
+        <select id="select-game-mode" class="mode-select-dropdown"
+          style="width:100%; padding:10px; border-radius:8px; background:rgba(0,0,0,0.5); color:#fff; border:1px solid rgba(255,255,255,0.3); font-size:1rem;">
+          <option value="NORMAL">🎯 通常モード</option>
+          <option value="BOMB">💣 TNT爆弾 (スキットルを飛ばす爆弾が出現)</option>
           <option value="UFO">🛸 UFOアブダクション (スキットル強奪・移送)</option>
-          <option value="CHAOS">💥 全載せカオス (爆弾＋UFO合体！)</option>
+          <option value="CHAOS">💥 カオス (爆弾＋UFO合体！)</option>
         </select>
       </div>
       <div id="player-inputs" class="player-inputs"></div>
@@ -133,4 +138,5 @@
 
   <script type="module" src="/src/main.js"></script>
 </body>
+
 </html>

@@ -110,7 +110,7 @@ export class GameState {
     if (isWin(player.score)) {
       this.winner = player;
       this.phase = GamePhase.GAME_OVER;
-      this.lastMessage = `🎉 ${player.name} ちょうど50点で勝利！`;
+      this.lastMessage = `🎉 ${player.name} 50点で勝利！`;
       return { message: this.lastMessage, gameOver: true };
     }
 

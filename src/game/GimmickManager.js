@@ -10,7 +10,7 @@ export const GAME_MODES = {
 
 export const GAME_MODE_INFO = {
   [GAME_MODES.NORMAL]: { name: '🎯 通常モード', desc: '標準的なモルックルール' },
-  [GAME_MODES.BOMB]: { name: '💣 TNT爆弾', desc: '3ターンごとに新しい場所にマイルドな爆弾が出現！' },
+  [GAME_MODES.BOMB]: { name: '💣 TNT爆弾', desc: 'ランダムなターンに新しい場所へ爆弾が出現！' },
   [GAME_MODES.UFO]: { name: '🛸 UFOアブダクション', desc: 'UFOが吸い上げて倒れず安全に移送ドロップ' },
   [GAME_MODES.CHAOS]: { name: '💥 全載せカオス', desc: '爆弾とUFOが合体したカオスモード' },
 };
@@ -61,13 +61,18 @@ export class GimmickManager {
     this.ufoAnimating = false;
   }
 
-  /** ターン開始時の処理（3ターンに1回の爆弾配置） */
+  /** ターン開始時の処理（ランダムなターンで爆弾配置） */
   onTurnStart(turnNumber, skittles) {
     const isBomb = this.currentMode === GAME_MODES.BOMB || this.currentMode === GAME_MODES.CHAOS;
     if (isBomb) {
-      // 3ターンに1回（1, 4, 7, 10... ターン）新しい安全な場所に爆弾を配置
-      if (turnNumber % 3 === 1 || !this.bombGroup || this.bombExploded) {
+      if (this.bombCooldown === undefined) {
+        this.bombCooldown = Math.floor(Math.random() * 3) + 3; // 3 to 5
+      }
+      
+      this.bombCooldown--;
+      if (this.bombCooldown <= 0 || !this.bombGroup) {
         this.spawnBombAtRandomPos(skittles);
+        this.bombCooldown = Math.floor(Math.random() * 3) + 3; // Reset to 3-5
       }
     }
   }
@@ -79,14 +84,14 @@ export class GimmickManager {
 
     // スキットルが立っていない位置を抽選
     let rx = 0, rz = 0;
-    for (let attempt = 0; attempt < 20; attempt++) {
-      rx = (Math.random() - 0.5) * 7.0;
-      rz = (Math.random() - 0.5) * 5.0 - 0.5;
+    for (let attempt = 0; attempt < 50; attempt++) {
+      rx = (Math.random() - 0.5) * 8.0;
+      rz = (Math.random() - 0.5) * 6.0 - 0.5;
 
       const safeFromAll = skittles.every(s => {
         if (!s.body) return true;
         const pos = s.body.translation();
-        return Math.sqrt((pos.x - rx) ** 2 + (pos.z - rz) ** 2) > 2.0;
+        return Math.sqrt((pos.x - rx) ** 2 + (pos.z - rz) ** 2) > 2.8;
       });
 
       if (safeFromAll) break;
@@ -138,10 +143,10 @@ export class GimmickManager {
 
     // UFO円盤
     const discGeo = new THREE.CylinderGeometry(2.5, 3.5, 0.6, 16);
-    const discMat = new THREE.MeshStandardMaterial({
-      color: 0x778899,
-      metalness: 0.9,
-      roughness: 0.2
+    const discMat = new THREE.MeshPhongMaterial({
+      color: 0xaaaaaa,    // ベースカラーは明るめのグレー
+      specular: 0xffffff, // 光の反射（ハイライト）を真っ白に
+      shininess: 100      // 鋭い反射で金属っぽく
     });
     const disc = new THREE.Mesh(discGeo, discMat);
     this.ufoGroup.add(disc);
@@ -283,12 +288,47 @@ export class GimmickManager {
     }
 
     this.ufoAnimating = true;
-    const targetSkittle = activeSkittles[Math.floor(Math.random() * activeSkittles.length)];
+
+    // 「遠くに行きすぎた」スキットルを優先して選ぶ
+    let targetSkittle = null;
+    const DISTANCE_THRESHOLD_SQ = 15.0 * 15.0; // 15.0 (1.5m) 以上を「遠すぎる」と判定
+    
+    // 原点からの距離の降順でソート
+    const sortedSkittles = [...activeSkittles].sort((a, b) => {
+      const pa = a.body.translation();
+      const pb = b.body.translation();
+      return (pb.x * pb.x + pb.z * pb.z) - (pa.x * pa.x + pa.z * pa.z);
+    });
+
+    const furthest = sortedSkittles[0];
+    const fPos = furthest.body.translation();
+    const furthestDistSq = fPos.x * fPos.x + fPos.z * fPos.z;
+
+    if (furthestDistSq > DISTANCE_THRESHOLD_SQ) {
+      targetSkittle = furthest;
+      console.log(`[Gimmick] 🛸 遠すぎスキットル発見！(距離: ${Math.sqrt(furthestDistSq).toFixed(1)}) -> 優先して回収します`);
+    } else {
+      // 遠すぎるものがなければランダム
+      targetSkittle = activeSkittles[Math.floor(Math.random() * activeSkittles.length)];
+    }
+
     const targetPos = targetSkittle.body.translation();
 
-    // 再配置先のランダム座標
-    const newX = (Math.random() - 0.5) * 8.0;
-    const newZ = (Math.random() - 0.5) * 5.0 - 0.5;
+    // 再配置先の安全なランダム座標を探す（他のスキットルと重なって倒さないようにする）
+    let newX = 0, newZ = 0;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      newX = (Math.random() - 0.5) * 8.0;
+      newZ = (Math.random() - 0.5) * 5.0 - 0.5;
+      
+      const isSafe = activeSkittles.every(s => {
+        if (s === targetSkittle || !s.body) return true;
+        const pos = s.body.translation();
+        // 密集地帯を避けるための安全距離 (1.8 = 0.18m)
+        return Math.sqrt((pos.x - newX) ** 2 + (pos.z - newZ) ** 2) > 1.8;
+      });
+      
+      if (isSafe) break;
+    }
 
     console.log(`[Gimmick] 🛸 UFOが ${targetSkittle.number}番 スキットルを移送中...`);
 
@@ -306,6 +346,8 @@ export class GimmickManager {
       arrivalProgress += 0.03;
       if (arrivalProgress >= 1.0) {
         this.ufoBeam.visible = true;
+        // 吸い上げ中の物理演算干渉を防ぐためキネマティックにする
+        targetSkittle.body.setBodyType(this.RAPIER.RigidBodyType.KinematicPositionBased, true);
         setTimeout(animateLift, 250);
         return;
       }
@@ -321,8 +363,8 @@ export class GimmickManager {
       const startSkittleY = targetPos.y;
       const targetSkittleY = hoverY - 1.2;
 
-      const liftInterval = setInterval(() => {
-        liftProgress += 0.05;
+      const lift = () => {
+        liftProgress += 0.04; // requestAnimationFrame ベースで約25フレーム (約0.4秒)
         const currentY = startSkittleY + (targetSkittleY - startSkittleY) * Math.min(1.0, liftProgress);
 
         targetSkittle.body.setTranslation({
@@ -332,10 +374,12 @@ export class GimmickManager {
         }, true);
 
         if (liftProgress >= 1.0) {
-          clearInterval(liftInterval);
           setTimeout(animateFlyToNewPos, 200);
+          return;
         }
-      }, 30);
+        requestAnimationFrame(lift);
+      };
+      lift();
     };
 
     // シーケンス3: UFOがスキットルを連れて新位置の上空へ水平移動
@@ -380,8 +424,8 @@ export class GimmickManager {
       let dropProgress = 0;
       const startSkittleY = hoverY - 1.2;
 
-      const dropInterval = setInterval(() => {
-        dropProgress += 0.05;
+      const drop = () => {
+        dropProgress += 0.04;
         const currentY = startSkittleY + (groundY - startSkittleY) * Math.min(1.0, dropProgress);
 
         targetSkittle.body.setTranslation({
@@ -391,19 +435,22 @@ export class GimmickManager {
         }, true);
 
         if (dropProgress >= 1.0) {
-          clearInterval(dropInterval);
-
-          // 正確な接地座標にセットし、正立状態（傾き0）にして物理スリープ（絶対に倒れない）
+          // 正確な接地座標にセットし、ダイナミックボディに戻して物理スリープ
           targetSkittle.body.setTranslation({ x: newX, y: groundY, z: newZ }, true);
           targetSkittle.body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
           targetSkittle.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
           targetSkittle.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+          
+          targetSkittle.body.setBodyType(this.RAPIER.RigidBodyType.Dynamic, true);
           targetSkittle.body.sleep();
 
           this.ufoBeam.visible = false;
           setTimeout(animateLeave, 350);
+          return;
         }
-      }, 30);
+        requestAnimationFrame(drop);
+      };
+      drop();
     };
 
     // シーケンス5: UFOが去り、カメラが俯瞰に戻る
