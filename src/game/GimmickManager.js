@@ -58,9 +58,10 @@ export class GimmickManager {
   }
 
   cleanup() {
-    if (this.conveyorMesh) {
-      this.scene.remove(this.conveyorMesh);
-      this.conveyorMesh = null;
+    if (this.conveyorGroup) {
+      this.scene.remove(this.conveyorGroup);
+      this.conveyorGroup = null;
+      this.conveyorMeshes = [];
     }
     if (this.bombGroup) {
       this.scene.remove(this.bombGroup);
@@ -78,31 +79,74 @@ export class GimmickManager {
 
   // ===== コンベア =====
   _initConveyor() {
-    const geo = new THREE.PlaneGeometry(12, 16);
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.fillStyle = '#222222';
-    ctx.fillRect(0, 0, 256, 256);
-    ctx.fillStyle = '#ffcc00';
-    for (let y = 0; y < 256; y += 32) {
-      ctx.fillRect(0, y, 256, 12);
-    }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(2, 4);
+    this.conveyorGroup = new THREE.Group();
+    this.conveyorMeshes = [];
 
-    const mat = new THREE.MeshLambertMaterial({
-      map: texture,
-      side: THREE.DoubleSide
-    });
-    this.conveyorMesh = new THREE.Mesh(geo, mat);
-    this.conveyorMesh.rotation.x = -Math.PI / 2;
-    this.conveyorMesh.position.set(0, 0.02, 0); // 地面直上
-    this.scene.add(this.conveyorMesh);
+    // 4つの循環コンベアベルトの定義（時計回りに循環して絶対に画面外に出ない）
+    this.conveyors = [
+      { // 1. 奥（右行き +X）
+        x: 0, z: -5.5, w: 13, l: 2.5, dirX: 1, dirZ: 0,
+        minX: -6.5, maxX: 6.5, minZ: -6.75, maxZ: -4.25, rot: 0
+      },
+      { // 2. 右（手前行き +Z）
+        x: 5.5, z: -1.0, w: 2.5, l: 11.5, dirX: 0, dirZ: 1,
+        minX: 4.25, maxX: 6.75, minZ: -6.75, maxZ: 4.75, rot: Math.PI / 2
+      },
+      { // 3. 手前（左行き -X）
+        x: 0, z: 3.5, w: 13, l: 2.5, dirX: -1, dirZ: 0,
+        minX: -6.5, maxX: 6.5, minZ: 2.25, maxZ: 4.75, rot: Math.PI
+      },
+      { // 4. 左（奥行き -Z）
+        x: -5.5, z: -1.0, w: 2.5, l: 11.5, dirX: 0, dirZ: -1,
+        minX: -6.75, maxX: -4.25, minZ: -6.75, maxZ: 4.75, rot: -Math.PI / 2
+      }
+    ];
+
+    for (const c of this.conveyors) {
+      const geo = new THREE.PlaneGeometry(c.w, c.l);
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      
+      // 暗い工業用ベルト
+      ctx.fillStyle = '#1e1e1e';
+      ctx.fillRect(0, 0, 256, 256);
+      
+      // 移動方向の矢印マーク
+      ctx.fillStyle = '#ffcc00';
+      for (let y = 32; y < 256; y += 64) {
+        ctx.beginPath();
+        ctx.moveTo(128, y - 16);
+        ctx.lineTo(176, y + 16);
+        ctx.lineTo(152, y + 16);
+        ctx.lineTo(152, y + 32);
+        ctx.lineTo(104, y + 32);
+        ctx.lineTo(104, y + 16);
+        ctx.lineTo(80, y + 16);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(Math.ceil(c.w / 2), Math.ceil(c.l / 2));
+
+      const mat = new THREE.MeshLambertMaterial({
+        map: texture,
+        side: THREE.DoubleSide
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.rotation.z = c.rot;
+      mesh.position.set(c.x, 0.02, c.z);
+      this.conveyorGroup.add(mesh);
+      this.conveyorMeshes.push(mesh);
+    }
+
+    this.scene.add(this.conveyorGroup);
   }
 
   // ===== トランポリン =====
@@ -195,22 +239,58 @@ export class GimmickManager {
 
   /** 毎フレーム更新 */
   update(stickBody, skittles) {
-    // コンベアの移動力
+    // コンベアの移動処理（超ゆっくり ＆ 多方向循環 ＆ 倒れ防止）
     const isConveyor = this.currentMode === GAME_MODES.CONVEYOR || this.currentMode === GAME_MODES.CHAOS;
-    if (isConveyor && this.conveyorMesh) {
-      this.conveyorMesh.material.map.offset.x += 0.01;
+    if (isConveyor && this.conveyorMeshes && this.conveyors) {
+      // ベルトのアニメーション
+      for (const mesh of this.conveyorMeshes) {
+        if (mesh.material.map) {
+          mesh.material.map.offset.y -= 0.003; // かなりゆっくり
+        }
+      }
+
+      const moveSpeed = 0.003; // かなりゆっくり搬送
 
       for (const s of skittles) {
         if (!s.body) continue;
         const pos = s.body.translation();
-        if (Math.abs(pos.x) < 6 && Math.abs(pos.z) < 8) {
-          s.body.applyImpulse({ x: 0.08, y: 0, z: 0 }, true);
+
+        // 4本のコンベアのどれの上にあるか判定
+        for (const c of this.conveyors) {
+          if (pos.x >= c.minX && pos.x <= c.maxX && pos.z >= c.minZ && pos.z <= c.maxZ) {
+            s.body.wakeUp();
+
+            // スキットルが立っている状態（upY > 0.6）なら、移動のせいで倒れないように回転（X・Z角速度）を抑制する
+            const rot = s.body.rotation();
+            const upY = 1 - 2 * (rot.x * rot.x + rot.z * rot.z);
+            if (upY > 0.6) {
+              const ang = s.body.angvel();
+              s.body.setAngvel({ x: 0, y: ang.y * 0.8, z: 0 }, true);
+            }
+
+            // 超ゆっくり力を加える
+            s.body.applyImpulse({
+              x: c.dirX * moveSpeed,
+              y: 0,
+              z: c.dirZ * moveSpeed
+            }, true);
+
+            break;
+          }
         }
       }
+
       if (stickBody) {
         const spos = stickBody.translation();
-        if (Math.abs(spos.x) < 6 && Math.abs(spos.z) < 8) {
-          stickBody.applyImpulse({ x: 0.15, y: 0, z: 0 }, true);
+        for (const c of this.conveyors) {
+          if (spos.x >= c.minX && spos.x <= c.maxX && spos.z >= c.minZ && spos.z <= c.maxZ) {
+            stickBody.applyImpulse({
+              x: c.dirX * moveSpeed * 1.5,
+              y: 0,
+              z: c.dirZ * moveSpeed * 1.5
+            }, true);
+            break;
+          }
         }
       }
     }
