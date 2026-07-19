@@ -66,8 +66,12 @@ export class CPUController {
     const currentScore = this.gameState.currentPlayer.score;
     const needed = WIN_SCORE - currentScore;
 
+    // CPUの投げる位置
+    const startX = 0;
+    const startZ = -THROW_DISTANCE;
+
     // 1. 各スキットルを狙った場合の「評価値（おすすめ度）」を計算
-    const evaluatedTargets = activeSkittles.map(s => this._evaluateTarget(s, activeSkittles, needed));
+    const evaluatedTargets = activeSkittles.map(s => this._evaluateTarget(s, activeSkittles, needed, startX, startZ));
     
     // 評価が高い順にソート
     evaluatedTargets.sort((a, b) => b.score - a.score);
@@ -130,9 +134,30 @@ export class CPUController {
     return selected.target;
   }
 
-  _evaluateTarget(targetSkittle, activeSkittles, needed) {
+  _evaluateTarget(targetSkittle, activeSkittles, needed, startX, startZ) {
     const CLUSTER_RADIUS = 1.5; // この半径内にいると「巻き込んで倒れる」と判定する
     const pos = targetSkittle.body.translation();
+    
+    // --- 届くかどうかの事前チェック ---
+    const deltaX = pos.x - startX;
+    const deltaZ = pos.z - startZ;
+    const adjustedDeltaX = deltaX / THROW_X_FACTOR;
+    const adjustedDeltaZ = deltaZ / THROW_Z_FACTOR;
+    const adjustedDist = Math.sqrt(adjustedDeltaX ** 2 + adjustedDeltaZ ** 2);
+    
+    let isReachable = true;
+    if (adjustedDist > 0.001) {
+      const dirY = adjustedDeltaZ / adjustedDist;
+      const throwY = THROW_MAX_POWER * THROW_Y_FACTOR;
+      const throwZ = dirY * THROW_MAX_POWER * THROW_Z_FACTOR;
+      const g = 9.81;
+      const maxT = (throwY + Math.sqrt(throwY ** 2 + 2 * g * THROW_HEIGHT)) / g;
+      const maxPredictedZ = startZ + throwZ * maxT;
+      // 多少転がることを考慮して、ターゲットの手前1.0まで届けばOKとする
+      if (maxPredictedZ < pos.z - 1.0) {
+        isReachable = false;
+      }
+    }
     
     // 密集度（巻き込み本数）を計算
     let clusterCount = 0;
@@ -150,15 +175,20 @@ export class CPUController {
 
     let score = 0;
 
-    // ① 即上がり
+    // ① 届かないターゲットへのペナルティ（最優先で回避）
+    if (!isReachable) {
+      score -= 50000;
+    }
+
+    // ② 即上がり
     if (expectedScore === needed) {
       score += 10000; // 最高評価
     }
-    // ② バースト（負け確定なので絶対に避ける）
+    // ③ バースト（負け確定なので絶対に避ける）
     else if (expectedScore > needed) {
       score -= 10000;
     }
-    // ③ 次のターンの上がり目作り（分割上がり）
+    // ④ 次のターンの上がり目作り（分割上がり）
     else {
       const remainingNeeded = needed - expectedScore;
       let foundGoodSetup = false;
@@ -184,7 +214,7 @@ export class CPUController {
         score += 5000; // 次のターンで上がれる絶好のポジションなので超高評価
       }
 
-      // ④ ベースとなる評価値（純粋なスコア稼ぎ）
+      // ⑤ ベースとなる評価値（純粋なスコア稼ぎ）
       score += expectedScore * 10;
       
       // 密集している場合は狙いやすい（ブレても何かに当たる）ので安全ボーナス
@@ -193,7 +223,7 @@ export class CPUController {
       }
     }
 
-    return { target: targetSkittle, score: score, expectedScore: expectedScore };
+    return { target: targetSkittle, score: score, expectedScore: expectedScore, isReachable: isReachable };
   }
 
   _calculatePullForTarget(targetX, targetZ, startX, startZ) {
