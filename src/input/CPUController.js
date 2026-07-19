@@ -46,13 +46,13 @@ export class CPUController {
 
     // 3. 人間味（ブレ）を追加
     // pull は NDC（-1.0 〜 1.0）のスケール。
-    let ndcNoise = 0.02; // 通常のブレ（約±10px）
+    let ndcNoise = 0.01; // ブレを半分の約±5pxにして精度2倍に強化！
 
-    // 3回〜4回に1回（約30%の確率）で高精度スロー（本気モード）が発動！
-    const isCritical = Math.random() < 0.30;
+    // 約40%の確率で超高精度スロー（本気モード）が発動！
+    const isCritical = Math.random() < 0.40;
     if (isCritical) {
-      console.log(`[CPU] ✨覚醒！高精度スローを発動します！`);
-      ndcNoise = 0.002; // ブレを10分の1にして、ほぼ狙い通りの超高精度にする
+      console.log(`[CPU] ✨覚醒！超高精度スローを発動します！`);
+      ndcNoise = 0.001; // ブレを10分の1にして、ほぼ針の穴を通す超高精度にする
     }
 
     pull.dx += (Math.random() - 0.5) * 2 * ndcNoise;
