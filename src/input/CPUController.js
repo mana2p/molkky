@@ -63,23 +63,26 @@ export class CPUController {
     const activeSkittles = [...this.skittleManager.skittles];
     if (activeSkittles.length === 0) return null;
 
-    // 1. 自身の上がり優先
     const currentScore = this.gameState.currentPlayer.score;
     const needed = WIN_SCORE - currentScore;
 
-    if (needed <= 12) {
-      const exactTarget = activeSkittles.find(s => s.number === needed);
-      if (exactTarget) {
-        return exactTarget;
-      }
+    // 1. 各スキットルを狙った場合の「評価値（おすすめ度）」を計算
+    const evaluatedTargets = activeSkittles.map(s => this._evaluateTarget(s, activeSkittles, needed));
+    
+    // 評価が高い順にソート
+    evaluatedTargets.sort((a, b) => b.score - a.score);
+    const bestTarget = evaluatedTargets[0];
+
+    // 2. 即上がりできる場合はサボタージュより優先して上がる！
+    if (bestTarget.score >= 10000) {
+      console.log(`[CPU] フィニッシュ！ ${bestTarget.target.number}番 を狙って上がりを決めます！`);
+      return bestTarget.target;
     }
 
-    // 2. 他プレイヤーの妨害（サボタージュ）
+    // 3. 他プレイヤーの妨害（サボタージュ）
     const opponents = this.gameState.playerManager.activePlayers.filter(
       p => p.index !== this.gameState.currentPlayer.index
     );
-    
-    // スコアが高い順（より上がりに近い順）に並べる
     opponents.sort((a, b) => b.score - a.score);
 
     for (const opp of opponents) {
@@ -87,37 +90,110 @@ export class CPUController {
       if (oppNeeded <= 12) {
         const dangerSkittle = activeSkittles.find(s => s.number === oppNeeded);
         if (dangerSkittle) {
-          // 危険スキットルが存在する！一番近い別のスキットルを探してそれをぶつける
+          // 危険スキットルが孤立しているか（狙われやすい状態か）をチェック
           const dangerPos = dangerSkittle.body.translation();
-          let closestDist = Infinity;
-          let sabotageTarget = null;
-          
+          let clusterCount = 0;
           for (const s of activeSkittles) {
-            if (s.number === dangerSkittle.number) continue;
             const pos = s.body.translation();
             const dist = Math.sqrt((pos.x - dangerPos.x) ** 2 + (pos.z - dangerPos.z) ** 2);
-            if (dist < closestDist) {
-              closestDist = dist;
-              sabotageTarget = s;
-            }
+            if (dist < 1.5) clusterCount++;
           }
           
-          if (sabotageTarget) {
-            console.log(`[CPU] 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 に一番近い ${sabotageTarget.number}番 を狙います！`);
-            return sabotageTarget;
+          if (clusterCount === 1) { // 孤立している＝相手が上がりやすい
+            let closestDist = Infinity;
+            let sabotageTarget = null;
+            for (const s of activeSkittles) {
+              if (s.number === dangerSkittle.number) continue;
+              const pos = s.body.translation();
+              const dist = Math.sqrt((pos.x - dangerPos.x) ** 2 + (pos.z - dangerPos.z) ** 2);
+              if (dist < closestDist) {
+                closestDist = dist;
+                sabotageTarget = s;
+              }
+            }
+            if (sabotageTarget) {
+              console.log(`[CPU] 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 に一番近い ${sabotageTarget.number}番 を狙います！`);
+              return sabotageTarget;
+            }
           }
         }
       }
     }
 
-    // 3. 通常時のスコア稼ぎ（高得点を狙う！）
-    // 高得点順（降順）にソート
-    activeSkittles.sort((a, b) => b.number - a.number);
-    // 上位3本のうちのどれかを狙う（一番高いやつだけだと単調になるため）
-    const index = Math.floor(Math.random() * Math.min(3, activeSkittles.length));
-    const targetSkittle = activeSkittles[index];
-    console.log(`[CPU] 通常攻撃: ${targetSkittle.number}番 を狙います`);
-    return targetSkittle;
+    // 4. 通常のスコア稼ぎ（密集度や次ターンを考慮した一番評価の高いターゲット）
+    // 評価が同じくらいのものからランダムに選ぶ（単調にならないように上位から抽選）
+    const topScore = evaluatedTargets[0].score;
+    const goodTargets = evaluatedTargets.filter(t => t.score >= topScore - 10);
+    const selected = goodTargets[Math.floor(Math.random() * goodTargets.length)];
+    
+    console.log(`[CPU] 戦略的思考: ${selected.target.number}番 を狙います (期待スコア: ${selected.expectedScore}, 評価値: ${selected.score})`);
+    return selected.target;
+  }
+
+  _evaluateTarget(targetSkittle, activeSkittles, needed) {
+    const CLUSTER_RADIUS = 1.5; // この半径内にいると「巻き込んで倒れる」と判定する
+    const pos = targetSkittle.body.translation();
+    
+    // 密集度（巻き込み本数）を計算
+    let clusterCount = 0;
+    for (const s of activeSkittles) {
+      const spos = s.body.translation();
+      const dist = Math.sqrt((pos.x - spos.x) ** 2 + (pos.z - spos.z) ** 2);
+      if (dist < CLUSTER_RADIUS) {
+        clusterCount++;
+      }
+    }
+
+    // 期待スコア
+    // 周囲に誰もいなければ（1本だけなら）そのスキットルの数字。密集していれば巻き込む本数がスコア。
+    const expectedScore = clusterCount === 1 ? targetSkittle.number : clusterCount;
+
+    let score = 0;
+
+    // ① 即上がり
+    if (expectedScore === needed) {
+      score += 10000; // 最高評価
+    }
+    // ② バースト（負け確定なので絶対に避ける）
+    else if (expectedScore > needed) {
+      score -= 10000;
+    }
+    // ③ 次のターンの上がり目作り（分割上がり）
+    else {
+      const remainingNeeded = needed - expectedScore;
+      let foundGoodSetup = false;
+      
+      // 次のターンで上がれる数字が「孤立して」存在するか？
+      if (remainingNeeded <= 12 && remainingNeeded > 0) {
+        const setupTarget = activeSkittles.find(s => s.number === remainingNeeded);
+        if (setupTarget && setupTarget !== targetSkittle) {
+          let setupClusterCount = 0;
+          const setupPos = setupTarget.body.translation();
+          for (const s of activeSkittles) {
+            const spos = s.body.translation();
+            const dist = Math.sqrt((setupPos.x - spos.x) ** 2 + (setupPos.z - spos.z) ** 2);
+            if (dist < CLUSTER_RADIUS) setupClusterCount++;
+          }
+          if (setupClusterCount === 1) { // 孤立していて確実に点数が取れる
+            foundGoodSetup = true;
+          }
+        }
+      }
+
+      if (foundGoodSetup) {
+        score += 5000; // 次のターンで上がれる絶好のポジションなので超高評価
+      }
+
+      // ④ ベースとなる評価値（純粋なスコア稼ぎ）
+      score += expectedScore * 10;
+      
+      // 密集している場合は狙いやすい（ブレても何かに当たる）ので安全ボーナス
+      if (clusterCount > 1) {
+        score += clusterCount * 5;
+      }
+    }
+
+    return { target: targetSkittle, score: score, expectedScore: expectedScore };
   }
 
   _calculatePullForTarget(targetX, targetZ, startX, startZ) {
