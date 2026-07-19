@@ -13,6 +13,7 @@ import { GameUI } from './ui/GameUI.js';
 import { CPUController } from './input/CPUController.js';
 import { GimmickManager } from './game/GimmickManager.js';
 import { SETTLE_MIN_FRAMES } from './constants.js';
+import { audioManager } from './audio/AudioManager.js';
 
 let throwController;
 let gameState;
@@ -79,8 +80,22 @@ async function main() {
   gameUI = new GameUI();
   gameUI.onStartGame = startGame;
   gameUI.onReplay = replay;
-  gameUI.onBackToMenu = backToMenu;
-  gameUI.showMainMenu();
+  gameUI.onBackToMenu = () => {
+    resetToMainMenu();
+  };
+
+  // サウンド制御
+  const audioBtn = document.getElementById('btn-audio-toggle');
+  if (audioBtn) {
+    audioBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isMuted = audioManager.toggleMute();
+      audioBtn.textContent = isMuted ? '🔇' : '🔊';
+    });
+  }
+  window.addEventListener('pointerdown', () => {
+    audioManager.initOnFirstInteraction();
+  });
 
   // 12. ゲームループ開始
   isRunning = true;
@@ -138,6 +153,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 
   stepPhysics();
+  updateSoundCollisions();
 
   switch (gameState.phase) {
     case GamePhase.READY:
@@ -319,6 +335,46 @@ function updateAimAndPower() {
 
   aimGuide.hide();
   gameUI.hidePowerGauge();
+}
+
+let prevStickSpeed = 0;
+let prevSkittleSpeeds = new Map();
+
+function updateSoundCollisions() {
+  if (!stickData || !skittleManager) return;
+  if (gameState.phase !== GamePhase.THROWING && gameState.phase !== GamePhase.SETTLING) {
+    prevStickSpeed = 0;
+    prevSkittleSpeeds.clear();
+    return;
+  }
+
+  // モルック棒の減速・着地
+  const sVel = stickData.body.linvel();
+  const stickSpeed = Math.sqrt(sVel.x ** 2 + sVel.y ** 2 + sVel.z ** 2);
+  const stickPos = stickData.body.translation();
+
+  if (prevStickSpeed > 3.0 && (prevStickSpeed - stickSpeed > 2.0 || (stickPos.y < 0.4 && prevStickSpeed > 1.5))) {
+    const vol = Math.min(1.0, prevStickSpeed / 15.0);
+    audioManager.playHit(vol);
+  }
+  prevStickSpeed = stickSpeed;
+
+  // スキットルの衝撃検知
+  for (const skittle of skittleManager.skittles) {
+    if (!skittle.body) continue;
+    const vel = skittle.body.linvel();
+    const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
+    const prevSpeed = prevSkittleSpeeds.get(skittle.number) || 0;
+
+    if (prevSpeed < 0.3 && speed > 1.0) {
+      const vol = Math.min(1.0, speed / 10.0);
+      audioManager.playHit(vol);
+    } else if (prevSpeed > 2.0 && (prevSpeed - speed > 1.5)) {
+      const vol = Math.min(1.0, prevSpeed / 10.0);
+      audioManager.playHit(vol);
+    }
+    prevSkittleSpeeds.set(skittle.number, speed);
+  }
 }
 
 main().catch((err) => {

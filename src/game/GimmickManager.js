@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SKITTLE_HALF_HEIGHT } from '../constants.js';
+import { audioManager } from '../audio/AudioManager.js';
 
 export const GAME_MODES = {
   NORMAL: 'NORMAL',
@@ -212,6 +213,7 @@ export class GimmickManager {
   triggerExplosion(skittles) {
     this.bombExploded = true;
     if (this.bombGroup) this.bombGroup.visible = false;
+    audioManager.playBomb();
 
     console.log('[Gimmick] 💣 爆発発動！！');
 
@@ -290,6 +292,7 @@ export class GimmickManager {
     }
 
     this.ufoAnimating = true;
+    audioManager.playUFO();
 
     const targetSkittle = this._findUFOTarget(activeSkittles);
     const targetPos = targetSkittle.body.translation();
