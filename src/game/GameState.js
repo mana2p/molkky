@@ -15,6 +15,7 @@ export const GamePhase = {
 export class GameState {
   constructor() {
     this.playerManager = new PlayerManager();
+    this.gameMode = 'NORMAL';
     this.reset();
   }
 

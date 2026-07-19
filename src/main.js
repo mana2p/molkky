@@ -11,6 +11,7 @@ import { CameraController } from './scene/CameraController.js';
 import { ParticleSystem } from './effects/ParticleSystem.js';
 import { GameUI } from './ui/GameUI.js';
 import { CPUController } from './input/CPUController.js';
+import { GimmickManager } from './game/GimmickManager.js';
 import { SETTLE_MIN_FRAMES } from './constants.js';
 
 let throwController;
@@ -21,6 +22,7 @@ let aimGuide;
 let cameraController;
 let particleSystem;
 let cpuController;
+let gimmickManager;
 let gameUI;
 let world;
 let scene;
@@ -67,6 +69,9 @@ async function main() {
   // 10. ゲーム状態
   gameState = new GameState();
 
+  // 10.2 ギミックマネージャー
+  gimmickManager = new GimmickManager(scene, world, RAPIER);
+
   // 10.5 CPUコントローラー
   cpuController = new CPUController(throwController, skittleManager, gameState);
 
@@ -82,8 +87,11 @@ async function main() {
   gameLoop();
 }
 
-function startGame(playerConfigs) {
+function startGame(playerConfigs, selectedMode = 'NORMAL') {
   gameState.startGame(playerConfigs);
+  gameState.gameMode = selectedMode;
+  gimmickManager.setMode(selectedMode);
+
   skittleManager.resetAll();
   resetStick(stickData.body, getRapier());
   cameraController.resetToOverview();
@@ -150,6 +158,9 @@ function gameLoop() {
   updateAimAndPower();
 
   // 各システム更新
+  if (gimmickManager) {
+    gimmickManager.update(stickData ? stickData.body : null, skittleManager.skittles);
+  }
   skittleManager.syncMeshes();
   syncStickMesh();
   cameraController.update();
@@ -282,6 +293,16 @@ function proceedToNextTurn() {
   skittleManager.resetToppled();
   resetStick(stickData.body, getRapier());
 
+  if (gimmickManager) {
+    gimmickManager.triggerUFOAbduction(skittleManager.skittles, () => {
+      finishProceedTurn();
+    });
+  } else {
+    finishProceedTurn();
+  }
+}
+
+function finishProceedTurn() {
   const nextPlayer = gameState.nextTurn();
   if (!nextPlayer) return;
 

@@ -64,9 +64,11 @@ export class GameUI {
     // ゲーム開始
     document.getElementById('btn-start-game').addEventListener('click', () => {
       const configs = this._getPlayerConfigs();
+      const modeSelect = document.getElementById('select-game-mode');
+      const selectedMode = modeSelect ? modeSelect.value : 'NORMAL';
       this.hidePlayerSetup();
       this.showHUD();
-      if (this.onStartGame) this.onStartGame(configs);
+      if (this.onStartGame) this.onStartGame(configs, selectedMode);
     });
 
     // リザルト画面
