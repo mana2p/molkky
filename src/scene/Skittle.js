@@ -14,20 +14,28 @@ function createNumberTexture(number) {
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
-  // 白樺の削りたての明るい白木色（90%不透明で、わずかに背後の木目が透けるようにして馴染ませる）
-  ctx.fillStyle = 'rgba(253, 250, 242, 0.92)';
-  ctx.fillRect(0, 0, 256, 256);
-  
-  // 枠線
-  ctx.strokeStyle = '#3a2010';
-  ctx.lineWidth = 14;
-  ctx.strokeRect(12, 12, 232, 232);
+  // 背景は完全透明（木肌がそのまま見える）
+  ctx.clearRect(0, 0, 256, 256);
 
-  // 番号テキスト（太字の黒）
-  ctx.fillStyle = '#000000';
+  // 焼印の刻印感を出すための「にじみ」シャドウ（焦げ跡のぼかし）
+  ctx.shadowColor = 'rgba(30, 10, 0, 0.6)';
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+
+  // 番号テキスト（焦げ茶色＝焼き印の色）
+  ctx.fillStyle = '#3a1a00';
   ctx.font = 'bold 185px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.fillText(String(number), 128, 128);
+
+  // 二重描画で焼印の濃さと深みを出す
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.shadowColor = 'rgba(60, 20, 0, 0.4)';
+  ctx.fillStyle = '#4a2200';
   ctx.fillText(String(number), 128, 128);
 
   const texture = new THREE.CanvasTexture(canvas);
