@@ -109,15 +109,26 @@ export class CPUController {
             for (const s of activeSkittles) {
               if (s.number === dangerSkittle.number) continue;
               const pos = s.body.translation();
+              
+              // 危険スキットルより「奥（後ろ）」にあるスキットルは、当ててもさらに奥に飛ぶだけで妨害にならないので除外
+              // 多少の斜め当たりを考慮して +0.2 までの手前〜真横のスキットルを候補にする
+              if (pos.z > dangerPos.z + 0.2) continue;
+
               const dist = Math.sqrt((pos.x - dangerPos.x) ** 2 + (pos.z - dangerPos.z) ** 2);
               if (dist < closestDist) {
                 closestDist = dist;
                 sabotageTarget = s;
               }
             }
-            if (sabotageTarget) {
-              console.log(`[CPU] 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 に一番近い ${sabotageTarget.number}番 を狙います！`);
+            
+            // 手前にぶつけられそうなスキットルがある場合（距離が3.0以内なら届く可能性あり）
+            if (sabotageTarget && closestDist < 3.0) {
+              console.log(`[CPU] 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 に一番近い手前の ${sabotageTarget.number}番 を狙ってぶつけます！`);
               return sabotageTarget;
+            } else {
+              // ぶつける手前スキットルが無い、または遠すぎる場合は、直接危険スキットルを狙う
+              console.log(`[CPU] 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 を直接狙って潰します！`);
+              return dangerSkittle;
             }
           }
         }
