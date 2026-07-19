@@ -139,12 +139,12 @@ export class CPUController {
       const maxT = (throwY + Math.sqrt(throwY ** 2 + 2 * g * THROW_HEIGHT)) / g;
       const predictedZ = startZ + throwZ * maxT;
       
-      // Z軸はカメラ奥がマイナス方向。
-      // predictedZ が targetZ より「小さい（奥にある）」場合は、パワーが強すぎて飛びすぎている
+      // Z軸は投げ出し(-35)からスキットル(0)に向かってプラス方向へ飛ぶ。
+      // predictedZ が targetZ より「小さい」場合は、パワーが弱すぎて手前に落ちている
       if (predictedZ < targetZ) {
-        high = midPower; // 飛びすぎなので上限を下げる
-      } else {
         low = midPower;  // 手前すぎるので下限を上げる
+      } else {
+        high = midPower; // 飛びすぎなので上限を下げる
       }
       bestPower = midPower;
     }
