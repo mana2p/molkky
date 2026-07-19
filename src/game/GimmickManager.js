@@ -318,12 +318,19 @@ export class GimmickManager {
       newX = (Math.random() - 0.5) * 8.0;
       newZ = (Math.random() - 0.5) * 5.0 - 0.5;
       
-      const isSafe = activeSkittles.every(s => {
+      let isSafe = activeSkittles.every(s => {
         if (s === targetSkittle || !s.body) return true;
         const pos = s.body.translation();
         // 密集地帯を避けるための安全距離 (1.8 = 0.18m)
         return Math.sqrt((pos.x - newX) ** 2 + (pos.z - newZ) ** 2) > 1.8;
       });
+      
+      // 爆弾がある場合は、爆弾の上にも落とさないようにする
+      if (isSafe && this.bombGroup && this.bombGroup.visible) {
+        if (Math.sqrt((this.bombPos.x - newX) ** 2 + (this.bombPos.z - newZ) ** 2) <= 1.8) {
+          isSafe = false;
+        }
+      }
       
       if (isSafe) break;
     }
