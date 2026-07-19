@@ -135,6 +135,21 @@ export class ThrowController {
     this.domElement.style.cursor = canThrow ? 'crosshair' : 'default';
   }
 
+  /** CPU用のシミュレート入力 */
+  setSimulatedPull(dx, dy) {
+    this.isAiming = true;
+    this.startPos = { x: 0, y: 0 };
+    // getPullVector は start - current を計算するので、 current = -dx, -dy とする
+    this.currentPos = { x: -dx, y: -dy };
+  }
+
+  releaseSimulatedPull() {
+    this._pendingThrow = this._calculateThrow();
+    this.isAiming = false;
+    this.startPos = null;
+    this.currentPos = null;
+  }
+
   dispose() {
     this.domElement.removeEventListener('pointerdown', this._onPointerDown);
     this.domElement.removeEventListener('pointermove', this._onPointerMove);

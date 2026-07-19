@@ -10,6 +10,7 @@ import { AimGuide } from './scene/AimGuide.js';
 import { CameraController } from './scene/CameraController.js';
 import { ParticleSystem } from './effects/ParticleSystem.js';
 import { GameUI } from './ui/GameUI.js';
+import { CPUController } from './input/CPUController.js';
 import { SETTLE_MIN_FRAMES } from './constants.js';
 
 let throwController;
@@ -19,6 +20,7 @@ let stickData;
 let aimGuide;
 let cameraController;
 let particleSystem;
+let cpuController;
 let gameUI;
 let world;
 let scene;
@@ -64,6 +66,9 @@ async function main() {
 
   // 10. ゲーム状態
   gameState = new GameState();
+
+  // 10.5 CPUコントローラー
+  cpuController = new CPUController(throwController, skittleManager, gameState);
 
   // 11. UI初期化
   gameUI = new GameUI();
@@ -152,7 +157,13 @@ function gameLoop() {
 }
 
 function handleReady() {
-  throwController.setCanThrow(true);
+  if (gameState.currentPlayer.isCpu) {
+    throwController.setCanThrow(false);
+    cpuController.playTurn();
+  } else {
+    throwController.setCanThrow(true);
+  }
+
   const throwVec = throwController.update();
 
   if (throwVec) {

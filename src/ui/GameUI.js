@@ -116,18 +116,43 @@ export class GameUI {
                placeholder="${PLAYER_NAMES_DEFAULT[i]}" 
                maxlength="12"
                data-index="${i}">
+        <button class="btn-cpu-toggle" data-cpu="false" data-index="${i}">👤 Human</button>
       `;
       container.appendChild(row);
     }
+
+    // CPU切り替えボタンのイベントリスナー
+    const cpuBtns = container.querySelectorAll('.btn-cpu-toggle');
+    cpuBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const isCpu = btn.dataset.cpu === 'true';
+        if (isCpu) {
+          btn.dataset.cpu = 'false';
+          btn.textContent = '👤 Human';
+          btn.classList.remove('is-cpu');
+        } else {
+          btn.dataset.cpu = 'true';
+          btn.textContent = '🤖 CPU';
+          btn.classList.add('is-cpu');
+        }
+      });
+    });
   }
 
   _getPlayerConfigs() {
     const inputs = document.querySelectorAll('.player-name-input');
+    const cpuBtns = document.querySelectorAll('.btn-cpu-toggle');
     const configs = [];
     inputs.forEach((input, i) => {
+      const isCpu = cpuBtns[i].dataset.cpu === 'true';
+      let name = input.value.trim();
+      if (!name) {
+        name = isCpu ? `CPU ${i+1}` : PLAYER_NAMES_DEFAULT[i];
+      }
       configs.push({
-        name: input.value.trim() || PLAYER_NAMES_DEFAULT[i],
+        name: name,
         color: PLAYER_COLORS[i],
+        isCpu: isCpu,
       });
     });
     return configs;

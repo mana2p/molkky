@@ -169,6 +169,13 @@ canvas {
   min-width: 240px;
 }
 
+.menu-credit {
+  margin-top: 30px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 1px;
+}
+
 /* ===== Player Setup ===== */
 .setup-panel {
   padding: 36px 40px;
@@ -272,6 +279,30 @@ canvas {
 
 .player-name-input::placeholder {
   color: #666;
+}
+
+.btn-cpu-toggle {
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 90px;
+}
+
+.btn-cpu-toggle:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-cpu-toggle.is-cpu {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
 }
 
 /* ===== How To Play ===== */

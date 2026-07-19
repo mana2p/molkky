@@ -1,10 +1,11 @@
 import { PLAYER_COLORS, PLAYER_NAMES_DEFAULT, MAX_CONSECUTIVE_MISSES } from '../constants.js';
 
 export class Player {
-  constructor(name, color, index) {
+  constructor(name, color, index, isCpu = false) {
     this.name = name;
     this.color = color;
     this.index = index;
+    this.isCpu = isCpu;
     this.score = 0;
     this.consecutiveMisses = 0;
     this.eliminated = false;
@@ -31,6 +32,7 @@ export class PlayerManager {
       cfg.name || PLAYER_NAMES_DEFAULT[i],
       cfg.color || PLAYER_COLORS[i],
       i,
+      cfg.isCpu || false
     ));
     this.currentIndex = 0;
   }
