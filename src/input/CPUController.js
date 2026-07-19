@@ -77,7 +77,18 @@ export class CPUController {
     evaluatedTargets.sort((a, b) => b.score - a.score);
     const bestTarget = evaluatedTargets[0];
 
-    // 2. 即上がりできる場合はサボタージュより優先して上がる！
+    // 2. ピンチ時の安全策（2回連続ミスしている場合は、確実に当てられる一番密集している場所を狙う）
+    if (this.gameState.currentPlayer.consecutiveMisses >= 2) {
+      const reachableTargets = evaluatedTargets.filter(t => t.isReachable);
+      if (reachableTargets.length > 0) {
+        reachableTargets.sort((a, b) => b.clusterCount - a.clusterCount);
+        const bestSafety = reachableTargets[0];
+        console.log(`[CPU] ピンチ！3回連続ミスを避けるため、安全な密集地帯(${bestSafety.target.number}番付近)を狙います！`);
+        return bestSafety.target;
+      }
+    }
+
+    // 3. 即上がりできる場合はサボタージュより優先して上がる！
     if (bestTarget.score >= 10000) {
       console.log(`[CPU] フィニッシュ！ ${bestTarget.target.number}番 を狙って上がりを決めます！`);
       return bestTarget.target;
@@ -123,13 +134,22 @@ export class CPUController {
             
             // 手前にぶつけられそうなスキットルがある場合（距離が3.0以内なら届く可能性あり）
             if (sabotageTarget && closestDist < 3.0) {
-              console.log(`[CPU] 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 に一番近い手前の ${sabotageTarget.number}番 を狙ってぶつけます！`);
-              return sabotageTarget;
-            } else {
-              // ぶつける手前スキットルが無い、または遠すぎる場合は、直接危険スキットルを狙う
+              const sabotageEval = evaluatedTargets.find(e => e.target === sabotageTarget);
+              if (sabotageEval && sabotageEval.isReachable) {
+                console.log(`[CPU] 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 に一番近い手前の ${sabotageTarget.number}番 を狙ってぶつけます！`);
+                return sabotageTarget;
+              }
+            }
+            
+            // ぶつける手前スキットルが無い、または遠すぎる、または届かない場合は、直接危険スキットルを狙う
+            const dangerEval = evaluatedTargets.find(e => e.target === dangerSkittle);
+            if (dangerEval && dangerEval.isReachable) {
               console.log(`[CPU] 妨害発動！${opp.name} の上がり目 ${dangerSkittle.number}番 を直接狙って潰します！`);
               return dangerSkittle;
             }
+            
+            // どちらも届かない場合はサボタージュを諦めて次のロジックへ
+            console.log(`[CPU] 妨害対象が遠すぎるためサボタージュを諦めます`);
           }
         }
       }
@@ -234,7 +254,7 @@ export class CPUController {
       }
     }
 
-    return { target: targetSkittle, score: score, expectedScore: expectedScore, isReachable: isReachable };
+    return { target: targetSkittle, score: score, expectedScore: expectedScore, isReachable: isReachable, clusterCount: clusterCount };
   }
 
   _calculatePullForTarget(targetX, targetZ, startX, startZ) {
