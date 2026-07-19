@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="description" content="3Dモルック - フィンランド発祥の投擲ゲームをブラウザで遊ぼう！">
+  <title>モルック - 3D Mölkky Game</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- ===== メインメニュー ===== -->
+  <div id="main-menu" class="overlay">
+    <div class="menu-content">
+      <h1 class="menu-title">
+        <span class="title-icon">🎯</span>
+        <span class="title-text">Mölkky</span>
+        <span class="title-sub">3D</span>
+      </h1>
+      <p class="menu-desc">フィンランド発祥の投擲ゲーム</p>
+      <div class="menu-buttons">
+        <button id="btn-play" class="btn btn-primary">🎮 ゲーム開始</button>
+        <button id="btn-how" class="btn btn-secondary">📖 遊び方</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== プレイヤー設定 ===== -->
+  <div id="player-setup" class="overlay hidden">
+    <div class="setup-panel glass-panel">
+      <h2 class="setup-title">プレイヤー設定</h2>
+      <div class="player-count-selector">
+        <label>人数:</label>
+        <div class="count-buttons" id="count-buttons">
+          <button class="count-btn active" data-count="1">1人</button>
+          <button class="count-btn" data-count="2">2人</button>
+          <button class="count-btn" data-count="3">3人</button>
+          <button class="count-btn" data-count="4">4人</button>
+        </div>
+      </div>
+      <div id="player-inputs" class="player-inputs"></div>
+      <button id="btn-start-game" class="btn btn-primary">▶ スタート！</button>
+    </div>
+  </div>
+
+  <!-- ===== 遊び方 ===== -->
+  <div id="how-to-play" class="overlay hidden">
+    <div class="setup-panel glass-panel how-panel">
+      <h2 class="setup-title">📖 遊び方</h2>
+      <div class="rules-content">
+        <div class="rule-section">
+          <h3>🎯 目的</h3>
+          <p>ちょうど <strong>50点</strong> を目指そう！</p>
+        </div>
+        <div class="rule-section">
+          <h3>🪵 投げ方</h3>
+          <p>画面を<strong>下に引いて離す</strong>とモルック棒が飛ぶよ（パチンコ式）。引く距離で力加減、方向で狙いを定めよう。</p>
+        </div>
+        <div class="rule-section">
+          <h3>📊 得点ルール</h3>
+          <ul>
+            <li><strong>1本だけ倒した</strong> → その番号が得点</li>
+            <li><strong>複数本倒した</strong> → 倒した本数が得点</li>
+          </ul>
+        </div>
+        <div class="rule-section">
+          <h3>⚠️ 注意</h3>
+          <ul>
+            <li>50点を超えたら <strong>25点にリセット</strong></li>
+            <li><strong>3回連続ミス</strong>で脱落！</li>
+            <li>倒れたスキットルは倒れた場所で立て直される</li>
+          </ul>
+        </div>
+      </div>
+      <button id="btn-close-how" class="btn btn-secondary">閉じる</button>
+    </div>
+  </div>
+
+  <!-- ===== インゲームHUD ===== -->
+  <div id="hud" class="hidden">
+    <!-- 現在のプレイヤー表示 -->
+    <div id="current-player" class="hud-player"></div>
+
+    <!-- スコアボード -->
+    <div id="scoreboard" class="scoreboard glass-panel"></div>
+
+    <!-- ターン情報 -->
+    <div id="turn-info" class="hud-turn-info"></div>
+  </div>
+
+  <!-- ===== 投げガイド ===== -->
+  <div id="throw-guide" class="hidden">
+    <div class="guide-content">
+      <span class="guide-icon">👇</span>
+      <span>下に引いて離すと投げる</span>
+    </div>
+  </div>
+
+  <!-- ===== パワーゲージ ===== -->
+  <div id="power-gauge" class="hidden">
+    <div id="power-fill"></div>
+  </div>
+
+  <!-- ===== メッセージ表示 ===== -->
+  <div id="message-display" class="hidden"></div>
+
+  <!-- ===== リザルト画面 ===== -->
+  <div id="result-screen" class="overlay hidden">
+    <div class="result-panel glass-panel">
+      <div id="result-content"></div>
+      <div class="result-buttons">
+        <button id="btn-replay" class="btn btn-primary">🔄 もう一度</button>
+        <button id="btn-back-menu" class="btn btn-secondary">🏠 メニューへ</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
