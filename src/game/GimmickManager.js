@@ -564,5 +564,6 @@ export class GimmickManager {
 
     animateArrival();
   }
+}
 
 
