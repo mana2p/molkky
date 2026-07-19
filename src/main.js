@@ -96,6 +96,8 @@ function startGame(playerConfigs, selectedMode = 'NORMAL') {
   resetStick(stickData.body, getRapier());
   cameraController.resetToOverview();
 
+  gimmickManager.onTurnStart(gameState.turn, skittleManager.skittles);
+
   const player = gameState.currentPlayer;
   gameUI.updateCurrentPlayer(player, gameState.turn);
   gameUI.updateScoreboard(
@@ -308,6 +310,8 @@ function finishProceedTurn() {
 
   // カメラを全体表示に戻す
   cameraController.setOverview();
+
+  gimmickManager.onTurnStart(gameState.turn, skittleManager.skittles);
 
   gameUI.updateCurrentPlayer(nextPlayer, gameState.turn);
   gameUI.updateScoreboard(
