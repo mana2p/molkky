@@ -42,10 +42,10 @@ export class CPUController {
     const pull = this._calculatePullForTarget(targetPos.x, targetPos.z, startX, startZ);
 
     // 3. 人間味（ブレ）を追加
-    // 上がりが近ければブレを少なくする等の調整も可能だが、今回は一律で少量のノイズを加える
-    const noiseLevel = 0.03; // 引っ張り量に対するノイズ
-    pull.dx += (Math.random() - 0.5) * noiseLevel;
-    pull.dy += (Math.random() - 0.5) * noiseLevel;
+    // 引っ張り量に対して ±10px 程度のブレを入れることでリアルなコントロールミスを再現
+    const pixelNoise = 10.0;
+    pull.dx += (Math.random() - 0.5) * 2 * pixelNoise;
+    pull.dy += (Math.random() - 0.5) * 2 * pixelNoise;
 
     // 4. アニメーション（徐々に引っ張る）して投げる
     this._simulatePullAndThrow(pull.dx, pull.dy, onComplete);
@@ -102,10 +102,14 @@ export class CPUController {
       }
     }
 
-    // 3. 通常時のスコア稼ぎ（とりあえず手前を狙う）
-    activeSkittles.sort((a, b) => a.body.translation().z - b.body.translation().z);
+    // 3. 通常時のスコア稼ぎ（高得点を狙う！）
+    // 高得点順（降順）にソート
+    activeSkittles.sort((a, b) => b.number - a.number);
+    // 上位3本のうちのどれかを狙う（一番高いやつだけだと単調になるため）
     const index = Math.floor(Math.random() * Math.min(3, activeSkittles.length));
-    return activeSkittles[index];
+    const targetSkittle = activeSkittles[index];
+    console.log(`[CPU] 通常攻撃: ${targetSkittle.number}番 を狙います`);
+    return targetSkittle;
   }
 
   _calculatePullForTarget(targetX, targetZ, startX, startZ) {
@@ -134,11 +138,12 @@ export class CPUController {
       const maxT = (throwY + Math.sqrt(throwY ** 2 + 2 * g * THROW_HEIGHT)) / g;
       const predictedZ = startZ + throwZ * maxT;
       
-      // predictedZ はプラス方向へ飛ぶ。deltaZが正の場合、predictedZがtargetZより手前ならパワー不足
+      // Z軸はカメラ奥がマイナス方向。
+      // predictedZ が targetZ より「小さい（奥にある）」場合は、パワーが強すぎて飛びすぎている
       if (predictedZ < targetZ) {
-        low = midPower; 
+        high = midPower; // 飛びすぎなので上限を下げる
       } else {
-        high = midPower;
+        low = midPower;  // 手前すぎるので下限を上げる
       }
       bestPower = midPower;
     }

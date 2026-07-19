@@ -304,13 +304,13 @@ function syncStickMesh() {
   stickData.mesh.position.set(pos.x, pos.y, pos.z);
   stickData.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
 
-  // 着地後は草むらの強い抵抗（ダンピング）をかけて、不自然な斜め転がりを防ぐ
-  if (gameState.phase === GamePhase.SETTLING || 
-     (gameState.phase === GamePhase.THROWING && gameState.settleFrames >= gameState.landingFrames)) {
+  // 着地後（高さが一定以下）は草むらの強い抵抗（ダンピング）をかけて、不自然な斜め転がりを防ぐ
+  // モルック棒の半径は0.275なので、0.4以下なら地面に接触していると判定
+  if ((gameState.phase === GamePhase.THROWING || gameState.phase === GamePhase.SETTLING) && pos.y < 0.45) {
     stickData.body.setLinearDamping(0.8);
     stickData.body.setAngularDamping(4.0); // 回転への抵抗をかなり強くして転がりを止める
-  } else if (gameState.phase === GamePhase.READY || gameState.phase === GamePhase.THROWING) {
-    // 構え中および空中の間は空気抵抗をリセット（エイムガイドと完全一致させるため）
+  } else if (gameState.phase === GamePhase.READY || gameState.phase === GamePhase.THROWING || gameState.phase === GamePhase.SETTLING) {
+    // 構え中および空中（スキットル衝突でバウンド中など）の間は空気抵抗をリセット
     stickData.body.setLinearDamping(0.0);
     stickData.body.setAngularDamping(0.10);
   }
