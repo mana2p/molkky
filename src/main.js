@@ -294,7 +294,7 @@ function proceedToNextTurn() {
   resetStick(stickData.body, getRapier());
 
   if (gimmickManager) {
-    gimmickManager.triggerUFOAbduction(skittleManager.skittles, () => {
+    gimmickManager.triggerUFOAbduction(skittleManager.skittles, cameraController, () => {
       finishProceedTurn();
     });
   } else {

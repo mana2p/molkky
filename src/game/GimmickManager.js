@@ -3,7 +3,6 @@ import * as THREE from 'three';
 export const GAME_MODES = {
   NORMAL: 'NORMAL',
   CONVEYOR: 'CONVEYOR',
-  TRAMPOLINE: 'TRAMPOLINE',
   BOMB: 'BOMB',
   UFO: 'UFO',
   CHAOS: 'CHAOS',
@@ -11,11 +10,10 @@ export const GAME_MODES = {
 
 export const GAME_MODE_INFO = {
   [GAME_MODES.NORMAL]: { name: '🎯 通常モード', desc: '標準的なモルックルール' },
-  [GAME_MODES.CONVEYOR]: { name: '🛞 ベルトコンベア', desc: '床が自動移動！スキットルが流れる' },
-  [GAME_MODES.TRAMPOLINE]: { name: '🎪 トランポリン', desc: '床が超高反発！月面大ジャンプ' },
-  [GAME_MODES.BOMB]: { name: '💣 TNT爆弾', desc: '爆弾に当てると大爆発して吹っ飛ぶ！' },
-  [GAME_MODES.UFO]: { name: '🛸 UFOアブダクション', desc: 'UFOが突然現れてスキットルを連れ去る' },
-  [GAME_MODES.CHAOS]: { name: '💥 全載せカオス', desc: 'すべてのギミックが同時に発動する狂気' },
+  [GAME_MODES.CONVEYOR]: { name: '🛞 ベルトコンベア', desc: 'スキットル足元で床がゆっくり流れる' },
+  [GAME_MODES.BOMB]: { name: '💣 TNT爆弾', desc: '脇に設置された爆弾に当てると大爆発！' },
+  [GAME_MODES.UFO]: { name: '🛸 UFOアブダクション', desc: 'UFOが飛来してスキットルを強奪' },
+  [GAME_MODES.CHAOS]: { name: '💥 全載せカオス', desc: 'すべてのギミックが合体したカオス' },
 };
 
 export class GimmickManager {
@@ -27,12 +25,12 @@ export class GimmickManager {
     this.currentMode = GAME_MODES.NORMAL;
     
     // コンベア
-    this.conveyorMesh = null;
-    this.conveyorSpeed = 0.05;
+    this.conveyorGroup = null;
+    this.conveyorMeshes = [];
 
     // 爆弾
     this.bombGroup = null;
-    this.bombPos = { x: 0, y: 0.5, z: 0 };
+    this.bombPos = { x: -3.8, y: 0.7, z: -1.0 };
     this.bombExploded = false;
     this.particles = [];
 
@@ -47,12 +45,10 @@ export class GimmickManager {
     this.cleanup();
 
     const isConveyor = mode === GAME_MODES.CONVEYOR || mode === GAME_MODES.CHAOS;
-    const isTrampoline = mode === GAME_MODES.TRAMPOLINE || mode === GAME_MODES.CHAOS;
     const isBomb = mode === GAME_MODES.BOMB || mode === GAME_MODES.CHAOS;
     const isUFO = mode === GAME_MODES.UFO || mode === GAME_MODES.CHAOS;
 
     if (isConveyor) this._initConveyor();
-    if (isTrampoline) this._initTrampoline();
     if (isBomb) this._initBomb();
     if (isUFO) this._initUFO();
   }
@@ -82,23 +78,23 @@ export class GimmickManager {
     this.conveyorGroup = new THREE.Group();
     this.conveyorMeshes = [];
 
-    // 4つの循環コンベアベルトの定義（時計回りに循環して絶対に画面外に出ない）
+    // スキットル群の真下および周囲を通る交差コンベアベルト
     this.conveyors = [
-      { // 1. 奥（右行き +X）
-        x: 0, z: -5.5, w: 13, l: 2.5, dirX: 1, dirZ: 0,
-        minX: -6.5, maxX: 6.5, minZ: -6.75, maxZ: -4.25, rot: 0
+      { // 1. スキットル直下・中央縦（手前行き +Z）
+        x: 0, z: -0.5, w: 2.2, l: 8.0, dirX: 0, dirZ: 1,
+        minX: -1.2, maxX: 1.2, minZ: -4.5, maxZ: 3.5, rot: Math.PI / 2
       },
-      { // 2. 右（手前行き +Z）
-        x: 5.5, z: -1.0, w: 2.5, l: 11.5, dirX: 0, dirZ: 1,
-        minX: 4.25, maxX: 6.75, minZ: -6.75, maxZ: 4.75, rot: Math.PI / 2
+      { // 2. スキットル中央横（右行き +X）
+        x: 0, z: -1.5, w: 8.0, l: 2.2, dirX: 1, dirZ: 0,
+        minX: -4.0, maxX: 4.0, minZ: -2.6, maxZ: -0.4, rot: 0
       },
-      { // 3. 手前（左行き -X）
-        x: 0, z: 3.5, w: 13, l: 2.5, dirX: -1, dirZ: 0,
-        minX: -6.5, maxX: 6.5, minZ: 2.25, maxZ: 4.75, rot: Math.PI
+      { // 3. 奥側横（左行き -X）
+        x: 0, z: -3.5, w: 8.0, l: 2.2, dirX: -1, dirZ: 0,
+        minX: -4.0, maxX: 4.0, minZ: -4.6, maxZ: -2.4, rot: Math.PI
       },
-      { // 4. 左（奥行き -Z）
-        x: -5.5, z: -1.0, w: 2.5, l: 11.5, dirX: 0, dirZ: -1,
-        minX: -6.75, maxX: -4.25, minZ: -6.75, maxZ: 4.75, rot: -Math.PI / 2
+      { // 4. 手前側横（右行き +X）
+        x: 0, z: 1.5, w: 8.0, l: 2.2, dirX: 1, dirZ: 0,
+        minX: -4.0, maxX: 4.0, minZ: 0.4, maxZ: 2.6, rot: 0
       }
     ];
 
@@ -109,11 +105,10 @@ export class GimmickManager {
       canvas.height = 256;
       const ctx = canvas.getContext('2d');
       
-      // 暗い工業用ベルト
-      ctx.fillStyle = '#1e1e1e';
+      ctx.fillStyle = '#222222';
       ctx.fillRect(0, 0, 256, 256);
       
-      // 移動方向の矢印マーク
+      // 移動方向の矢印
       ctx.fillStyle = '#ffcc00';
       for (let y = 32; y < 256; y += 64) {
         ctx.beginPath();
@@ -149,16 +144,6 @@ export class GimmickManager {
     this.scene.add(this.conveyorGroup);
   }
 
-  // ===== トランポリン =====
-  _initTrampoline() {
-    // 地面コライダーの反発力を一時的に最大化
-    this.world.forEachCollider(collider => {
-      if (collider.halfExtents && collider.halfExtents().x > 20) {
-        collider.setRestitution(0.92);
-      }
-    });
-  }
-
   // ===== 爆弾 =====
   _initBomb() {
     this.bombGroup = new THREE.Group();
@@ -170,7 +155,7 @@ export class GimmickManager {
       roughness: 0.3,
       metalness: 0.8
     });
-    const bombBody = new THREE.Mesh(bodyGeo, bodyMat);
+    const bombBody = new THREE.Mesh(bodyGeo, bombBody);
     this.bombGroup.add(bombBody);
 
     // 導火線
@@ -187,8 +172,8 @@ export class GimmickManager {
     this.spark.position.set(0, 1.0, 0);
     this.bombGroup.add(this.spark);
 
-    // 爆弾の配置場所（スキットル群の真ん中前あたり）
-    this.bombPos = { x: 0, y: 0.7, z: -1.5 };
+    // 爆弾の配置場所（スキットル群の左脇の安全な場所。狙って当てると爆発！）
+    this.bombPos = { x: -3.8, y: 0.7, z: -1.0 };
     this.bombGroup.position.set(this.bombPos.x, this.bombPos.y, this.bombPos.z);
     this.scene.add(this.bombGroup);
     this.bombExploded = false;
@@ -239,40 +224,39 @@ export class GimmickManager {
 
   /** 毎フレーム更新 */
   update(stickBody, skittles) {
-    // コンベアの移動処理（超ゆっくり ＆ 多方向循環 ＆ 倒れ防止）
+    // コンベアの移動処理（直下配置・確実な位置移動・絶対に倒れない）
     const isConveyor = this.currentMode === GAME_MODES.CONVEYOR || this.currentMode === GAME_MODES.CHAOS;
     if (isConveyor && this.conveyorMeshes && this.conveyors) {
-      // ベルトのアニメーション
       for (const mesh of this.conveyorMeshes) {
         if (mesh.material.map) {
-          mesh.material.map.offset.y -= 0.003; // かなりゆっくり
+          mesh.material.map.offset.y -= 0.006;
         }
       }
 
-      const moveSpeed = 0.003; // かなりゆっくり搬送
+      const moveStep = 0.012; // 目に見えて動く、でも転がらない理想の速度
 
       for (const s of skittles) {
         if (!s.body) continue;
         const pos = s.body.translation();
 
-        // 4本のコンベアのどれの上にあるか判定
         for (const c of this.conveyors) {
           if (pos.x >= c.minX && pos.x <= c.maxX && pos.z >= c.minZ && pos.z <= c.maxZ) {
             s.body.wakeUp();
 
-            // スキットルが立っている状態（upY > 0.6）なら、移動のせいで倒れないように回転（X・Z角速度）を抑制する
             const rot = s.body.rotation();
             const upY = 1 - 2 * (rot.x * rot.x + rot.z * rot.z);
+
+            // スキットルが立っている状態（upY > 0.6）なら、姿勢を正立（x, zの傾き0）に固定して倒れずスムーズに滑らせる
             if (upY > 0.6) {
-              const ang = s.body.angvel();
-              s.body.setAngvel({ x: 0, y: ang.y * 0.8, z: 0 }, true);
+              s.body.setRotation({ x: 0, y: rot.y, z: 0, w: rot.w }, true);
+              s.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
             }
 
-            // 超ゆっくり力を加える
-            s.body.applyImpulse({
-              x: c.dirX * moveSpeed,
-              y: 0,
-              z: c.dirZ * moveSpeed
+            // 直接位置をずらして確実に滑らか移動
+            s.body.setTranslation({
+              x: pos.x + c.dirX * moveStep,
+              y: pos.y,
+              z: pos.z + c.dirZ * moveStep
             }, true);
 
             break;
@@ -284,10 +268,10 @@ export class GimmickManager {
         const spos = stickBody.translation();
         for (const c of this.conveyors) {
           if (spos.x >= c.minX && spos.x <= c.maxX && spos.z >= c.minZ && spos.z <= c.maxZ) {
-            stickBody.applyImpulse({
-              x: c.dirX * moveSpeed * 1.5,
-              y: 0,
-              z: c.dirZ * moveSpeed * 1.5
+            stickBody.setTranslation({
+              x: spos.x + c.dirX * moveStep,
+              y: spos.y,
+              z: spos.z + c.dirZ * moveStep
             }, true);
             break;
           }
@@ -384,8 +368,8 @@ export class GimmickManager {
     }
   }
 
-  /** UFO連れ去りイベント */
-  triggerUFOAbduction(skittles, onComplete) {
+  /** UFO連れ去りイベント（カメラズームアウト演出連動） */
+  triggerUFOAbduction(skittles, cameraController, onComplete) {
     const isUFO = this.currentMode === GAME_MODES.UFO || this.currentMode === GAME_MODES.CHAOS;
     if (!isUFO || !this.ufoGroup || this.ufoAnimating) {
       if (onComplete) onComplete();
@@ -403,6 +387,11 @@ export class GimmickManager {
     const targetPos = targetSkittle.body.translation();
 
     console.log(`[Gimmick] 🛸 UFOが ${targetSkittle.number}番 スキットルを連れ去りに飛来！`);
+
+    // カメラをひいて空と地面全体が見える構図にフォーカス！
+    if (cameraController) {
+      cameraController.setUFOFocus(targetPos);
+    }
 
     let progress = 0;
     const hoverY = 7;
@@ -432,8 +421,8 @@ export class GimmickManager {
 
         if (lift >= 5.0) {
           clearInterval(liftInterval);
-          const newX = (Math.random() - 0.5) * 16;
-          const newZ = (Math.random() - 0.5) * 10 - 2;
+          const newX = (Math.random() - 0.5) * 12;
+          const newZ = (Math.random() - 0.5) * 6 - 1;
           targetSkittle.body.setTranslation({ x: newX, y: 0.5, z: newZ }, true);
           targetSkittle.body.wakeUp();
 
@@ -446,13 +435,15 @@ export class GimmickManager {
     const animateLeave = () => {
       let leaveProgress = 0;
       const startX = this.ufoGroup.position.x;
-      const startZ = this.ufoGroup.position.z;
 
       const leave = () => {
         leaveProgress += 0.04;
         if (leaveProgress >= 1.0) {
           this.ufoGroup.position.set(0, 25, 0);
           this.ufoAnimating = false;
+          if (cameraController) {
+            cameraController.setOverview();
+          }
           if (onComplete) onComplete();
           return;
         }
@@ -466,3 +457,4 @@ export class GimmickManager {
     animateArrival();
   }
 }
+

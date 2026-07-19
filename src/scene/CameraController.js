@@ -89,6 +89,24 @@ export class CameraController {
   }
 
   /**
+   * UFOアブダクション観戦用にカメラを引き、空のUFOと地面のスキットルが全体収まるアングルにする
+   */
+  setUFOFocus(targetPoint) {
+    this.mode = 'UFO';
+    this._stickBody = null;
+
+    const tx = targetPoint ? targetPoint.x : 0;
+    const tz = targetPoint ? targetPoint.z : 0;
+
+    // 高い位置・遠い位置から全体（空のUFO＋地面）を俯瞰
+    this.targetPos.set(tx * 0.4, 14, tz - 25);
+    this.targetTarget.set(tx * 0.3, 3.0, tz);
+
+    this.posLerp = 0.05;
+    this.targetLerp = 0.06;
+  }
+
+  /**
    * 倒れたスキットル群をクローズアップ
    * @param {{ x, y, z }} focusPoint - 倒れたスキットルの平均位置
    */
