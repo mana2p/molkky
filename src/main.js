@@ -107,6 +107,7 @@ function replay() {
   const configs = gameState.playerManager.players.map(p => ({
     name: p.name,
     color: p.color,
+    isCpu: p.isCpu,
   }));
   startGame(configs);
 }
@@ -176,6 +177,8 @@ function handleReady() {
     const maxT = (throwVec.y + Math.sqrt(throwVec.y * throwVec.y + 2 * g * stickPos.y)) / g;
     const landingX = stickPos.x + throwVec.x * maxT;
     const landingZ = stickPos.z + throwVec.z * maxT;
+
+    gameState.landingFrames = Math.max(0, Math.floor(maxT * 60)); // 着地までのフレーム数
 
     throwController.setCanThrow(false);
     gameUI.showThrowGuide(false);
@@ -300,6 +303,17 @@ function syncStickMesh() {
   const rot = stickData.body.rotation();
   stickData.mesh.position.set(pos.x, pos.y, pos.z);
   stickData.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+
+  // 着地後は草むらの強い抵抗（ダンピング）をかけて、不自然な斜め転がりを防ぐ
+  if (gameState.phase === GamePhase.SETTLING || 
+     (gameState.phase === GamePhase.THROWING && gameState.settleFrames >= gameState.landingFrames)) {
+    stickData.body.setLinearDamping(0.8);
+    stickData.body.setAngularDamping(4.0); // 回転への抵抗をかなり強くして転がりを止める
+  } else if (gameState.phase === GamePhase.READY || gameState.phase === GamePhase.THROWING) {
+    // 構え中および空中の間は空気抵抗をリセット（エイムガイドと完全一致させるため）
+    stickData.body.setLinearDamping(0.0);
+    stickData.body.setAngularDamping(0.10);
+  }
 }
 
 function updateAimAndPower() {
