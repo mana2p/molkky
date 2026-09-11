@@ -68,8 +68,7 @@ export function createMolkkyStick(scene, world, RAPIER) {
 
   stickBody = world.createRigidBody(bodyDesc);
 
-  // コライダー: 面取り円柱(roundCylinder)コライダーに変更し、
-  // 現実のモルック棒の「角が取れた平らな端面」の物理挙動を正確に再現する。
+  // コライダー: 角丸円柱(roundCylinder)
   const colliderDesc = RAPIER.ColliderDesc.roundCylinder(
     h - bevelRadius,
     r - bevelRadius,
@@ -115,10 +114,27 @@ export function syncMolkkyStickMesh(stickData, gamePhase) {
   stickData.mesh.position.set(pos.x, pos.y, pos.z);
   stickData.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
 
-  if ((gamePhase === GamePhase.THROWING || gamePhase === GamePhase.SETTLING) && pos.y < 0.45) {
-    stickData.body.setLinearDamping(0.8);
-    stickData.body.setAngularDamping(4.0);
-  } else if (gamePhase === GamePhase.READY || gamePhase === GamePhase.THROWING || gamePhase === GamePhase.SETTLING) {
+  // 長軸の傾き (0: 水平横倒し, 1: 垂直直立)
+  const tiltY = Math.abs(2 * (rot.y * rot.z + rot.w * rot.x));
+
+  // 接地判定: 棒が地面付近にある場合のみ（空中での誤爆を防止）
+  const isGrounded = pos.y < 0.45 || (pos.y < 0.70 && tiltY > 0.35);
+
+  if ((gamePhase === GamePhase.THROWING || gamePhase === GamePhase.SETTLING) && isGrounded) {
+    // スキットルと同等の物理減衰（Linear: 0.40, Angular: 2.50）
+    stickData.body.setLinearDamping(0.40);
+    stickData.body.setAngularDamping(2.50);
+
+    // 角丸コライダー特有の斜め立ちコマ運動を防止：
+    // 地面で斜めに起きて自転している時、垂直スピン（Y軸回転）を素早く逃がしてパタリと倒す
+    if (tiltY > 0.30) {
+      const angvel = stickData.body.angvel();
+      if (Math.abs(angvel.y) > 0.15) {
+        stickData.body.setAngvel({ x: angvel.x, y: angvel.y * 0.80, z: angvel.z }, true);
+      }
+    }
+  } else {
+    // 空中飛行中: ガイド線と完全一致（空気抵抗ゼロ）
     stickData.body.setLinearDamping(0.0);
     stickData.body.setAngularDamping(0.10);
   }
@@ -130,14 +146,16 @@ export function isMolkkyStickSettled(stickData, settleFrames, RAPIER) {
   const pos = stickData.body.translation();
   const linvel = stickData.body.linvel();
   const angvel = stickData.body.angvel();
-  const speed = Math.sqrt(linvel.x ** 2 + linvel.y ** 2 + linvel.z ** 2);
-  const angSpeed = Math.sqrt(angvel.x ** 2 + angvel.y ** 2 + angvel.z ** 2);
+  const speed = Math.hypot(linvel.x, linvel.y, linvel.z);
+  const angSpeed = Math.hypot(angvel.x, angvel.y, angvel.z);
 
-  if (pos.y > 0.6 || settleFrames < 30) {
+  // 地面に落ちて適度に転がる時間（40フレーム ≒ 0.67秒）を確保
+  if (pos.y > 0.50 || settleFrames < 40) {
     return false;
   }
 
-  if (speed < 0.3 && angSpeed < 0.5) {
+  // スキットルと同等の速度閾値で自然にピタッと静止
+  if (speed < 0.12 && angSpeed < 0.20) {
     if (speed > 0 || angSpeed > 0) {
       stickData.body.setLinvel(new RAPIER.Vector3(0, 0, 0), true);
       stickData.body.setAngvel(new RAPIER.Vector3(0, 0, 0), true);
