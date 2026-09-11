@@ -697,7 +697,7 @@ canvas {
     font-size: 16px;
   }
 
-  /* ターン情報（左上、サウンドボタンの右隣: top: 12px, 高さ36pxで完全面一！） */
+  /* ターン情報（左上: top: 12px, 高さ36pxで完全面一） */
   .hud-turn-info {
     top: 12px;
     left: 54px;
@@ -705,13 +705,36 @@ canvas {
     padding: 0 10px;
     font-size: 11px;
     border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  /* スコアボード（右上: top: 12pxで上端完全面一！） */
+  /* 現在のプレイヤー（中央: top: 12px, 高さ36pxで全要素と完全面一！） */
+  .hud-player {
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+    max-width: calc(100vw - 220px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  /* スコアボード（右上: top: 12pxで上端完全面一） */
   .scoreboard {
     top: 12px;
     right: 12px;
-    min-width: 96px;
+    min-width: 86px;
     padding: 6px 10px;
     font-size: 11px;
     border-radius: 10px;
@@ -730,26 +753,12 @@ canvas {
 
   .sb-name {
     font-size: 11px;
-    max-width: 60px;
+    max-width: 50px;
   }
 
   .sb-score {
     font-size: 12px;
-    min-width: 20px;
-  }
-
-  /* 現在のプレイヤー（2段目中央: top: 56px に配置して1段目と完全に干渉ゼロ！） */
-  .hud-player {
-    top: 56px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 12px;
-    font-weight: 700;
-    padding: 6px 16px;
-    border-radius: 20px;
-    white-space: nowrap;
-    max-width: 80vw;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    min-width: 18px;
   }
 
   /* 投げガイド */
