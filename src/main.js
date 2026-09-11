@@ -80,9 +80,7 @@ async function main() {
   gameUI = new GameUI();
   gameUI.onStartGame = startGame;
   gameUI.onReplay = replay;
-  gameUI.onBackToMenu = () => {
-    resetToMainMenu();
-  };
+  gameUI.onBackToMenu = backToMenu;
 
   // サウンド制御
   const audioBtn = document.getElementById('btn-audio-toggle');
@@ -140,6 +138,9 @@ function replay() {
 function backToMenu() {
   gameUI.hideResult();
   gameUI.hideMessage();
+  if (gimmickManager) {
+    gimmickManager.cleanup();
+  }
   skittleManager.resetAll();
   resetStick(stickData.body, getRapier());
   cameraController.resetToOverview();
