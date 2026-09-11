@@ -62,12 +62,14 @@ export class GimmickManager {
     this.ufoAnimating = false;
   }
 
-  /** ターン開始時の処理（一定確率で爆弾を配置） */
+  /** ターン開始時の処理（爆弾の出現・移動） */
   onTurnStart(turnNumber, skittles) {
     const isBomb = this.currentMode === GAME_MODES.BOMB || this.currentMode === GAME_MODES.CHAOS;
     if (isBomb) {
-      // 毎ターン約33%の確率で爆弾が出現・または移動する
-      if (Math.random() < 0.33) {
+      // 爆発済み or まだ出てない場合は必ず出現、存在中は50%で移動
+      if (this.bombExploded || !this.bombGroup?.visible) {
+        this.spawnBombAtRandomPos(skittles);
+      } else if (Math.random() < 0.5) {
         this.spawnBombAtRandomPos(skittles);
       }
     }
@@ -131,7 +133,7 @@ export class GimmickManager {
     this.bombGroup.position.set(this.bombPos.x, this.bombPos.y, this.bombPos.z);
     this.scene.add(this.bombGroup);
     
-    // 初手で必ず出現しないよう、初期状態は隠す
+    // 初期状態は隠す（onTurnStartで必ず出現させる）
     this.bombGroup.visible = false;
     this.bombExploded = true;
   }
