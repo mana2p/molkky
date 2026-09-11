@@ -92,8 +92,6 @@ npm run dev
 npm run build
 ```
 
-ブラウザで `http://localhost:5173` を開くとゲームが起動します。
-
 ---
 
 ## 📄 ライセンス
