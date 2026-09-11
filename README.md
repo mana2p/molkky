@@ -79,7 +79,7 @@
 
 ```bash
 # リポジトリのクローン
-git clone https://github.com/ntakeshitgcom/molkky.git
+git clone https://github.com/mana2p/molkky.git
 cd molkky
 
 # 依存パッケージのインストール
