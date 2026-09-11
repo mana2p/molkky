@@ -212,7 +212,7 @@ function handleReady() {
 
     throwController.setCanThrow(false);
     gameUI.showThrowGuide(false);
-    gameUI.hidePowerGauge();
+    gameUI.updatePowerGauge(0);
     aimGuide.hide();
 
     // カメラを追跡モードに（着弾予測地点を渡す）
@@ -335,7 +335,7 @@ function updateAimAndPower() {
   }
 
   aimGuide.hide();
-  gameUI.hidePowerGauge();
+  gameUI.updatePowerGauge(0);
 }
 
 let prevStickSpeed = 0;
@@ -351,7 +351,7 @@ function updateSoundCollisions() {
 
   // モルック棒の減速・着地
   const sVel = stickData.body.linvel();
-  const stickSpeed = Math.sqrt(sVel.x ** 2 + sVel.y ** 2 + sVel.z ** 2);
+  const stickSpeed = Math.hypot(sVel.x, sVel.y, sVel.z);
   const stickPos = stickData.body.translation();
 
   if (prevStickSpeed > 3.0 && (prevStickSpeed - stickSpeed > 2.0 || (stickPos.y < 0.4 && prevStickSpeed > 1.5))) {
@@ -364,7 +364,7 @@ function updateSoundCollisions() {
   for (const skittle of skittleManager.skittles) {
     if (!skittle.body) continue;
     const vel = skittle.body.linvel();
-    const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
+    const speed = Math.hypot(vel.x, vel.y, vel.z);
     const prevSpeed = prevSkittleSpeeds.get(skittle.number) || 0;
 
     if (prevSpeed < 0.3 && speed > 1.0) {

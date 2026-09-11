@@ -36,8 +36,8 @@ export class SkittleManager {
     for (const skittle of this.skittles) {
       const linvel = skittle.body.linvel();
       const angvel = skittle.body.angvel();
-      const speed = Math.sqrt(linvel.x ** 2 + linvel.y ** 2 + linvel.z ** 2);
-      const angSpeed = Math.sqrt(angvel.x ** 2 + angvel.y ** 2 + angvel.z ** 2);
+      const speed = Math.hypot(linvel.x, linvel.y, linvel.z);
+      const angSpeed = Math.hypot(angvel.x, angvel.y, angvel.z);
 
       if (speed < SETTLE_VELOCITY_THRESHOLD && angSpeed < SETTLE_VELOCITY_THRESHOLD) {
         if (speed > 0 || angSpeed > 0) {
@@ -62,35 +62,30 @@ export class SkittleManager {
     return toppled;
   }
 
+  _resetSkittle(skittle, x, z) {
+    skittle.body.setLinvel(new this.RAPIER.Vector3(0, 0, 0), true);
+    skittle.body.setAngvel(new this.RAPIER.Vector3(0, 0, 0), true);
+    skittle.body.setTranslation(
+      new this.RAPIER.Vector3(x, SKITTLE_HALF_HEIGHT, z),
+      true
+    );
+    skittle.body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
+    skittle.body.sleep();
+  }
+
   /** ターン終了時：全てのスキットルをその場で直立させる（倒れたものも、中途半端に傾いたものも全て） */
   resetToppled() {
     for (const skittle of this.skittles) {
       const pos = skittle.body.translation();
-      skittle.body.setLinvel(new this.RAPIER.Vector3(0, 0, 0), true);
-      skittle.body.setAngvel(new this.RAPIER.Vector3(0, 0, 0), true);
-      skittle.body.setTranslation(
-        new this.RAPIER.Vector3(pos.x, SKITTLE_HALF_HEIGHT, pos.z),
-        true
-      );
-      skittle.body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
-      skittle.body.sleep();
+      this._resetSkittle(skittle, pos.x, pos.z);
     }
   }
 
   /** 全スキットルを初期位置にリセット（ゲームリスタート用） */
   resetAll() {
     for (let i = 0; i < this.skittles.length; i++) {
-      const skittle = this.skittles[i];
       const pos = SKITTLE_POSITIONS[i];
-
-      skittle.body.setLinvel(new this.RAPIER.Vector3(0, 0, 0), true);
-      skittle.body.setAngvel(new this.RAPIER.Vector3(0, 0, 0), true);
-      skittle.body.setTranslation(
-        new this.RAPIER.Vector3(pos.x, SKITTLE_HALF_HEIGHT, pos.z),
-        true
-      );
-      skittle.body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
-      skittle.body.sleep();
+      this._resetSkittle(this.skittles[i], pos.x, pos.z);
     }
   }
 

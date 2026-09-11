@@ -5,7 +5,6 @@ export const GamePhase = {
   MENU: 'MENU',
   SETUP: 'SETUP',
   READY: 'READY',
-  AIMING: 'AIMING',
   THROWING: 'THROWING',
   SETTLING: 'SETTLING',
   SCORING: 'SCORING',
@@ -77,17 +76,15 @@ export class GameState {
       player.scoreHistory.push({ turn: this.turn, gained: 0, total: player.score });
 
       if (this.playerManager.checkElimination(player)) {
-        // 全員脱落チェック
-        if (this.playerManager.activePlayers.length === 0) {
+        const active = this.playerManager.activePlayers;
+        if (active.length === 0) {
           this.phase = GamePhase.GAME_OVER;
           this.lastMessage = '💀 全員脱落！ゲーム終了！';
           return { message: this.lastMessage, gameOver: true };
         }
 
-        const activePlayers = this.playerManager.activePlayers;
-        // 残り1人なら自動勝利
-        if (activePlayers.length === 1) {
-          this.winner = activePlayers[0];
+        if (active.length === 1) {
+          this.winner = active[0];
           this.phase = GamePhase.GAME_OVER;
           this.lastMessage = `🎉 ${this.winner.name} の勝利！（最後の生き残り）`;
           return { message: this.lastMessage, gameOver: true };

@@ -219,9 +219,6 @@ export class GameUI {
     }
   }
 
-  hidePowerGauge() {
-    this.powerGauge.classList.add('hidden');
-  }
 
   // ===== メッセージ表示 =====
   showMessage(text, duration = 3000) {

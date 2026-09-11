@@ -238,6 +238,27 @@ canvas {
   color: #fff;
 }
 
+.game-mode-selector {
+  margin-bottom: 20px;
+}
+
+.game-mode-selector label {
+  display: block;
+  font-size: 15px;
+  color: #aaa;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.game-mode-selector select {
+  width: 100%;
+  cursor: pointer;
+}
+
+.game-mode-selector option {
+  background: #1a1a2e;
+}
+
 .player-inputs {
   display: flex;
   flex-direction: column;
