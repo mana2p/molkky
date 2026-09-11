@@ -68,6 +68,7 @@ export class GimmickManager {
     if (!isBomb) return;
 
     const isVisible = this.bombGroup?.visible && !this.bombExploded;
+    console.log(`[Bomb] turn=${turnNumber} isVisible=${isVisible} bombExploded=${this.bombExploded}`);
 
     if (turnNumber === 1) {
       // 第1ターンは必ず出現
@@ -75,9 +76,11 @@ export class GimmickManager {
     } else if (!isVisible) {
       // 爆発済み or 非表示 → 40%で再出現
       if (Math.random() < 0.4) this.spawnBombAtRandomPos(skittles);
+      else console.log('[Bomb] 今ターンは出現なし');
     } else {
       // 存在中 → 60%で位置移動
       if (Math.random() < 0.6) this.spawnBombAtRandomPos(skittles);
+      else console.log('[Bomb] 今ターンは移動なし');
     }
   }
 
@@ -86,26 +89,32 @@ export class GimmickManager {
     this.bombExploded = false;
     if (this.bombGroup) this.bombGroup.visible = true;
 
-    // スキットルが立っていない位置を抽選
-    let rx = 0, rz = 0;
+    // スキットルから一定以上離れた位置を抽選（距離制約1.2に緩和）
+    let rx, rz;
+    let found = false;
     for (let attempt = 0; attempt < 50; attempt++) {
       rx = (Math.random() - 0.5) * 8.0;
       rz = (Math.random() - 0.5) * 6.0 - 0.5;
 
-      const safeFromAll = skittles.every(s => {
+      const safe = skittles.every(s => {
         if (!s.body) return true;
         const pos = s.body.translation();
-        return Math.sqrt((pos.x - rx) ** 2 + (pos.z - rz) ** 2) > 2.8;
+        return Math.hypot(pos.x - rx, pos.z - rz) > 1.2;
       });
 
-      if (safeFromAll) break;
+      if (safe) { found = true; break; }
+    }
+    // 50回全滅した場合はフィールド隅に強制配置
+    if (!found) {
+      rx = (Math.random() < 0.5 ? -1 : 1) * (3.5 + Math.random());
+      rz = -3.5 - Math.random();
     }
 
     this.bombPos = { x: rx, y: 0.7, z: rz };
     if (this.bombGroup) {
       this.bombGroup.position.set(rx, 0.7, rz);
     }
-    console.log(`[Gimmick] 💣 爆弾が位置 (${rx.toFixed(1)}, ${rz.toFixed(1)}) にセットされました！`);
+    console.log(`[Bomb] 爆弾セット: (${rx.toFixed(2)}, ${rz.toFixed(2)}) found=${found}`);
   }
 
   // ===== 爆弾 =====
