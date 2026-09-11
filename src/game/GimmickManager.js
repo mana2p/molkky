@@ -65,13 +65,19 @@ export class GimmickManager {
   /** ターン開始時の処理（爆弾の出現・移動） */
   onTurnStart(turnNumber, skittles) {
     const isBomb = this.currentMode === GAME_MODES.BOMB || this.currentMode === GAME_MODES.CHAOS;
-    if (isBomb) {
-      // 爆発済み or まだ出てない場合は必ず出現、存在中は50%で移動
-      if (this.bombExploded || !this.bombGroup?.visible) {
-        this.spawnBombAtRandomPos(skittles);
-      } else if (Math.random() < 0.5) {
-        this.spawnBombAtRandomPos(skittles);
-      }
+    if (!isBomb) return;
+
+    const isVisible = this.bombGroup?.visible && !this.bombExploded;
+
+    if (turnNumber === 1) {
+      // 第1ターンは必ず出現
+      this.spawnBombAtRandomPos(skittles);
+    } else if (!isVisible) {
+      // 爆発済み or 非表示 → 40%で再出現
+      if (Math.random() < 0.4) this.spawnBombAtRandomPos(skittles);
+    } else {
+      // 存在中 → 60%で位置移動
+      if (Math.random() < 0.6) this.spawnBombAtRandomPos(skittles);
     }
   }
 
