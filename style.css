@@ -730,35 +730,40 @@ canvas {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
-  /* スコアボード（右上: top: 12pxで上端完全面一） */
+  /* スコアボード（右上: top: 12pxで上端完全面一、さらにコンパクトに縮小） */
   .scoreboard {
     top: 12px;
     right: 12px;
-    min-width: 86px;
-    padding: 6px 10px;
-    font-size: 11px;
-    border-radius: 10px;
+    min-width: 72px;
+    padding: 4px 8px;
+    font-size: 10px;
+    border-radius: 8px;
   }
 
   .scoreboard-title {
-    font-size: 9px;
-    margin-bottom: 3px;
-    letter-spacing: 1px;
+    font-size: 8px;
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
   }
 
   .scoreboard-row {
-    padding: 2px 0;
+    padding: 1px 0;
     gap: 4px;
   }
 
+  .sb-color {
+    width: 6px;
+    height: 6px;
+  }
+
   .sb-name {
-    font-size: 11px;
-    max-width: 50px;
+    font-size: 10px;
+    max-width: 44px;
   }
 
   .sb-score {
-    font-size: 12px;
-    min-width: 18px;
+    font-size: 11px;
+    min-width: 14px;
   }
 
   /* 投げガイド */
