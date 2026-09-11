@@ -36,15 +36,20 @@ export class GimmickManager {
     this.ufoAnimating = false;
   }
 
+  get hasBomb() {
+    return this.currentMode === GAME_MODES.BOMB || this.currentMode === GAME_MODES.CHAOS;
+  }
+
+  get hasUFO() {
+    return this.currentMode === GAME_MODES.UFO || this.currentMode === GAME_MODES.CHAOS;
+  }
+
   setMode(mode) {
     this.currentMode = mode;
     this.cleanup();
 
-    const isBomb = mode === GAME_MODES.BOMB || mode === GAME_MODES.CHAOS;
-    const isUFO = mode === GAME_MODES.UFO || mode === GAME_MODES.CHAOS;
-
-    if (isBomb) this._initBomb();
-    if (isUFO) this._initUFO();
+    if (this.hasBomb) this._initBomb();
+    if (this.hasUFO) this._initUFO();
   }
 
   cleanup() {
@@ -64,57 +69,56 @@ export class GimmickManager {
 
   /** ターン開始時の処理（爆弾の出現・移動） */
   onTurnStart(turnNumber, skittles) {
-    const isBomb = this.currentMode === GAME_MODES.BOMB || this.currentMode === GAME_MODES.CHAOS;
-    if (!isBomb) return;
+    if (!this.hasBomb) return;
 
     const isVisible = this.bombGroup?.visible && !this.bombExploded;
-    console.log(`[Bomb] turn=${turnNumber} isVisible=${isVisible} bombExploded=${this.bombExploded}`);
+    const spawnRate = turnNumber === 1 ? 1.0 : (isVisible ? 0.6 : 0.4);
+    console.log(`[Bomb] turn=${turnNumber} isVisible=${isVisible} rate=${spawnRate}`);
 
-    if (turnNumber === 1) {
-      // 第1ターンは必ず出現
+    if (Math.random() < spawnRate) {
       this.spawnBombAtRandomPos(skittles);
-    } else if (!isVisible) {
-      // 爆発済み or 非表示 → 40%で再出現
-      if (Math.random() < 0.4) this.spawnBombAtRandomPos(skittles);
-      else console.log('[Bomb] 今ターンは出現なし');
     } else {
-      // 存在中 → 60%で位置移動
-      if (Math.random() < 0.6) this.spawnBombAtRandomPos(skittles);
-      else console.log('[Bomb] 今ターンは移動なし');
+      console.log(`[Bomb] 今ターンは${isVisible ? '移動' : '出現'}なし`);
     }
   }
 
   /** 爆弾をスキットルから離れたランダムな安全位置に出現 */
   spawnBombAtRandomPos(skittles) {
     this.bombExploded = false;
-    if (this.bombGroup) this.bombGroup.visible = true;
+    const { x, z, found } = this._findSafePosition(skittles, { minDistance: 1.2 });
+    this.bombPos = { x, y: 0.7, z };
 
-    // スキットルから一定以上離れた位置を抽選（距離制約1.2に緩和）
-    let rx, rz;
-    let found = false;
-    for (let attempt = 0; attempt < 50; attempt++) {
-      rx = (Math.random() - 0.5) * 8.0;
-      rz = (Math.random() - 0.5) * 6.0 - 0.5;
-
-      const safe = skittles.every(s => {
-        if (!s.body) return true;
-        const pos = s.body.translation();
-        return Math.hypot(pos.x - rx, pos.z - rz) > 1.2;
-      });
-
-      if (safe) { found = true; break; }
-    }
-    // 50回全滅した場合はフィールド隅に強制配置
-    if (!found) {
-      rx = (Math.random() < 0.5 ? -1 : 1) * (3.5 + Math.random());
-      rz = -3.5 - Math.random();
-    }
-
-    this.bombPos = { x: rx, y: 0.7, z: rz };
     if (this.bombGroup) {
-      this.bombGroup.position.set(rx, 0.7, rz);
+      this.bombGroup.visible = true;
+      this.bombGroup.position.set(x, 0.7, z);
     }
-    console.log(`[Bomb] 爆弾セット: (${rx.toFixed(2)}, ${rz.toFixed(2)}) found=${found}`);
+    console.log(`[Bomb] 爆弾セット: (${x.toFixed(2)}, ${z.toFixed(2)}) found=${found}`);
+  }
+
+  /** フィールド上で既存オブジェクトと重ならない安全なランダム座標を探索 */
+  _findSafePosition(skittles, { minDistance = 1.2, excludeSkittle = null, avoidBomb = false } = {}) {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const x = (Math.random() - 0.5) * 8.0;
+      const z = (Math.random() - 0.5) * 6.0 - 0.5;
+
+      const safeSkittles = skittles.every(s =>
+        s === excludeSkittle || !s.body || Math.hypot(s.body.translation().x - x, s.body.translation().z - z) > minDistance
+      );
+
+      const safeBomb = !avoidBomb || !this.bombGroup?.visible || this.bombExploded ||
+        Math.hypot(this.bombPos.x - x, this.bombPos.z - z) > minDistance;
+
+      if (safeSkittles && safeBomb) {
+        return { x, z, found: true };
+      }
+    }
+
+    // 見つからなかった場合はフィールド隅に配置
+    return {
+      x: (Math.random() < 0.5 ? -1 : 1) * (3.5 + Math.random()),
+      z: -3.5 - Math.random(),
+      found: false
+    };
   }
 
   // ===== 爆弾 =====
@@ -199,8 +203,7 @@ export class GimmickManager {
   /** 毎フレーム更新 */
   update(stickBody, skittles) {
     // 爆弾の点滅 ＆ 衝突検知
-    const isBomb = this.currentMode === GAME_MODES.BOMB || this.currentMode === GAME_MODES.CHAOS;
-    if (isBomb && this.bombGroup && !this.bombExploded) {
+    if (this.hasBomb && this.bombGroup && !this.bombExploded) {
       if (this.spark) {
         this.spark.scale.setScalar(0.8 + Math.sin(Date.now() * 0.02) * 0.4);
       }
@@ -292,7 +295,7 @@ export class GimmickManager {
 
   /** UFOフル演出（飛来 → 吸い上げ → 空中移動 → 地面へ安全着陸ドロップ → 離脱） */
   triggerUFOAbduction(turn, skittles, cameraController, onComplete) {
-    const isUFO = this.currentMode === GAME_MODES.UFO || this.currentMode === GAME_MODES.CHAOS || turn >= 50;
+    const isUFO = this.hasUFO || turn >= 50;
     if (!isUFO || this.ufoAnimating) {
       if (onComplete) onComplete();
       return;
@@ -489,28 +492,12 @@ export class GimmickManager {
   }
 
   _findUFOSafeDropLocation(activeSkittles, targetSkittle) {
-    let newX = 0, newZ = 0;
-    for (let attempt = 0; attempt < 30; attempt++) {
-      newX = (Math.random() - 0.5) * 8.0;
-      newZ = (Math.random() - 0.5) * 5.0 - 0.5;
-      
-      let isSafe = activeSkittles.every(s => {
-        if (s === targetSkittle || !s.body) return true;
-        const pos = s.body.translation();
-        // 密集地帯を避けるための安全距離 (1.8 = 0.18m)
-        return Math.sqrt((pos.x - newX) ** 2 + (pos.z - newZ) ** 2) > 1.8;
-      });
-      
-      // 爆弾がある場合は、爆弾の上にも落とさないようにする
-      if (isSafe && this.bombGroup && this.bombGroup.visible) {
-        if (Math.sqrt((this.bombPos.x - newX) ** 2 + (this.bombPos.z - newZ) ** 2) <= 1.8) {
-          isSafe = false;
-        }
-      }
-      
-      if (isSafe) break;
-    }
-    return { newX, newZ };
+    const { x, z } = this._findSafePosition(activeSkittles, {
+      minDistance: 1.8,
+      excludeSkittle: targetSkittle,
+      avoidBomb: true,
+    });
+    return { newX: x, newZ: z };
   }
 }
 
