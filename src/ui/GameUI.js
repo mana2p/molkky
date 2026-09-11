@@ -142,12 +142,13 @@ export class GameUI {
   }
 
   _getPlayerConfigs() {
-    const inputs = document.querySelectorAll('.player-name-input');
-    const cpuBtns = document.querySelectorAll('.btn-cpu-toggle');
+    const rows = document.querySelectorAll('#player-inputs .player-input-row');
     const configs = [];
-    inputs.forEach((input, i) => {
-      const isCpu = cpuBtns[i].dataset.cpu === 'true';
-      let name = input.value.trim();
+    rows.forEach((row, i) => {
+      const input = row.querySelector('.player-name-input');
+      const cpuBtn = row.querySelector('.btn-cpu-toggle');
+      const isCpu = cpuBtn ? cpuBtn.dataset.cpu === 'true' : false;
+      let name = input ? input.value.trim() : '';
       if (!name) {
         name = isCpu ? `CPU ${i+1}` : PLAYER_NAMES_DEFAULT[i];
       }

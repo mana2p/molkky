@@ -250,13 +250,28 @@ canvas {
   margin-bottom: 8px;
 }
 
-.game-mode-selector select {
+.game-mode-select {
   width: 100%;
+  font-family: var(--font-main);
+  font-size: 15px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  outline: none;
   cursor: pointer;
+  transition: var(--transition);
 }
 
-.game-mode-selector option {
+.game-mode-select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 10px rgba(0, 201, 255, 0.2);
+}
+
+.game-mode-select option {
   background: #1a1a2e;
+  color: #fff;
 }
 
 .player-inputs {
