@@ -27,6 +27,8 @@ export class ThrowController {
     this.startPos = null;
     this.currentPos = null;
     this._pendingThrow = null;
+    this._isSimulated = false;
+    this._lastPointerType = null;
 
     this._onPointerDown = this._onPointerDown.bind(this);
     this._onPointerMove = this._onPointerMove.bind(this);
@@ -41,26 +43,19 @@ export class ThrowController {
     domElement.style.touchAction = 'none';
   }
 
-  /** マウス/タッチ座標をNDC (-1〜+1) に変換 */
-  _toNDC(e) {
-    const rect = this.domElement.getBoundingClientRect();
-    return {
-      x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      y: -((e.clientY - rect.top) / rect.height) * 2 + 1,
-    };
-  }
-
   _onPointerDown(e) {
     if (!this.canThrow) return;
     this.isAiming = true;
-    this.startPos = this._toNDC(e);
-    this.currentPos = { ...this.startPos };
+    this._isSimulated = false;
+    this._lastPointerType = e.pointerType;
+    this.startPos = { clientX: e.clientX, clientY: e.clientY };
+    this.currentPos = { clientX: e.clientX, clientY: e.clientY };
     this.domElement.setPointerCapture(e.pointerId);
   }
 
   _onPointerMove(e) {
-    if (!this.isAiming) return;
-    this.currentPos = this._toNDC(e);
+    if (!this.isAiming || this._isSimulated) return;
+    this.currentPos = { clientX: e.clientX, clientY: e.clientY };
   }
 
   _onPointerUp(e) {
@@ -68,19 +63,41 @@ export class ThrowController {
     // isAiming を false にする前に throw を計算する（getPullVector が isAiming を参照するため）
     this._pendingThrow = this._calculateThrow();
     this.isAiming = false;
+    this._isSimulated = false;
     this.startPos = null;
     this.currentPos = null;
   }
 
   /**
-   * 引き戻しベクトル（start - current）を返す
+   * 引き戻しベクトルを返す
    * スリングショットの原理: 引いた方向＝発射方向
+   * 画面下方向に引く (+Y_screen) => 前方 (+y)
+   * 画面左に引く   (-X_screen) => 右方向 (+x)
    */
   getPullVector() {
     if (!this.isAiming || !this.startPos || !this.currentPos) return null;
+
+    // CPUによるシミュレーション入力
+    if (this._isSimulated) {
+      return {
+        x: this.startPos.x - this.currentPos.x,
+        y: this.startPos.y - this.currentPos.y,
+      };
+    }
+
+    const rect = this.domElement.getBoundingClientRect();
+    // 画面高さ基準でアスペクト比の歪みを解消（等方性）
+    const baseScale = rect.height * 0.5;
+    const dxPx = this.startPos.clientX - this.currentPos.clientX;
+    const dyPx = this.currentPos.clientY - this.startPos.clientY;
+
+    // スマホ（タッチ操作または画面幅 <= 768px）では感度を少し弱めて（約18%オフ）、繊細な力加減を可能にする
+    const isMobile = this._lastPointerType === 'touch' || rect.width <= 768;
+    const sensitivity = isMobile ? 0.82 : 1.0;
+
     return {
-      x: this.startPos.x - this.currentPos.x,
-      y: this.startPos.y - this.currentPos.y,
+      x: (dxPx / baseScale) * sensitivity,
+      y: (dyPx / baseScale) * sensitivity,
     };
   }
 
@@ -138,6 +155,7 @@ export class ThrowController {
   /** CPU用のシミュレート入力 */
   setSimulatedPull(dx, dy) {
     this.isAiming = true;
+    this._isSimulated = true;
     this.startPos = { x: 0, y: 0 };
     // getPullVector は start - current を計算するので、 current = -dx, -dy とする
     this.currentPos = { x: -dx, y: -dy };
@@ -146,6 +164,7 @@ export class ThrowController {
   releaseSimulatedPull() {
     this._pendingThrow = this._calculateThrow();
     this.isAiming = false;
+    this._isSimulated = false;
     this.startPos = null;
     this.currentPos = null;
   }
