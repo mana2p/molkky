@@ -474,16 +474,55 @@ canvas {
   text-align: right;
 }
 
+/* ===== サウンド切り替えボタン ===== */
+.btn-audio-toggle {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, background 0.2s ease;
+  pointer-events: auto;
+}
+
+.btn-audio-toggle:hover {
+  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-audio-toggle:active {
+  transform: scale(0.95);
+}
+
+/* ターン情報（サウンドボタンと高さを40pxに統一して完全面一） */
 .hud-turn-info {
   position: absolute;
   top: 16px;
-  left: 68px;
-  padding: 10px 16px;
+  left: 64px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
   border-radius: var(--radius-sm);
   font-size: 13px;
+  font-weight: 600;
   color: #aaa;
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
 }
 
@@ -629,7 +668,7 @@ canvas {
 }
 
 /* ===== Responsive (Mobile & Tablet) ===== */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   /* メインメニュー */
   .title-text {
     font-size: 44px;
@@ -649,28 +688,29 @@ canvas {
     overflow-y: auto;
   }
 
-  /* サウンドボタン（左上） */
+  /* サウンドボタン（左上: top: 12px, 高さ36px） */
   .btn-audio-toggle {
-    top: 10px;
-    left: 10px;
+    top: 12px;
+    left: 12px;
     width: 36px;
     height: 36px;
     font-size: 16px;
   }
 
-  /* ターン情報（左上、サウンドボタンの右隣） */
+  /* ターン情報（左上、サウンドボタンの右隣: top: 12px, 高さ36pxで完全面一！） */
   .hud-turn-info {
-    top: 10px;
-    left: 52px;
-    padding: 7px 10px;
+    top: 12px;
+    left: 54px;
+    height: 36px;
+    padding: 0 10px;
     font-size: 11px;
     border-radius: 8px;
   }
 
-  /* スコアボード（右上） */
+  /* スコアボード（右上: top: 12pxで上端完全面一！） */
   .scoreboard {
-    top: 10px;
-    right: 10px;
+    top: 12px;
+    right: 12px;
     min-width: 96px;
     padding: 6px 10px;
     font-size: 11px;
@@ -698,17 +738,17 @@ canvas {
     min-width: 20px;
   }
 
-  /* 現在のプレイヤー（2段目中央に配置して被りを完全解消！） */
+  /* 現在のプレイヤー（2段目中央: top: 56px に配置して1段目と完全に干渉ゼロ！） */
   .hud-player {
-    top: 50px;
+    top: 56px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 12px;
     font-weight: 700;
-    padding: 5px 14px;
+    padding: 6px 16px;
     border-radius: 20px;
     white-space: nowrap;
-    max-width: 76vw;
+    max-width: 80vw;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
@@ -753,35 +793,4 @@ canvas {
     max-width: 360px;
     padding: 24px 16px;
   }
-}
-
-/* ===== サウンド切り替えボタン ===== */
-.btn-audio-toggle {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 100;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  color: #fff;
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s ease, background 0.2s ease;
-  pointer-events: auto;
-}
-
-.btn-audio-toggle:hover {
-  transform: scale(1.1);
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.btn-audio-toggle:active {
-  transform: scale(0.95);
 }
