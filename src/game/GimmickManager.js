@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SKITTLE_HALF_HEIGHT } from '../constants.js';
 import { audioManager } from '../audio/AudioManager.js';
+import { isSkittleToppled } from './Rules.js';
 
 export const GAME_MODES = {
   NORMAL: 'NORMAL',
@@ -82,10 +83,10 @@ export class GimmickManager {
     }
   }
 
-  /** 爆弾をスキットルから離れたランダムな安全位置に出現 */
+  /** 爆弾をスキットルの有効爆破距離に出現（必ず1本は倒せる位置） */
   spawnBombAtRandomPos(skittles) {
     this.bombExploded = false;
-    const { x, z, found } = this._findSafePosition(skittles, { minDistance: 1.2 });
+    const { x, z, found } = this._findBombPosition(skittles);
     this.bombPos = { x, y: 0.7, z };
 
     if (this.bombGroup) {
@@ -93,6 +94,60 @@ export class GimmickManager {
       this.bombGroup.position.set(x, 0.7, z);
     }
     console.log(`[Bomb] 爆弾セット: (${x.toFixed(2)}, ${z.toFixed(2)}) found=${found}`);
+  }
+
+  /**
+   * 爆弾の出現位置を決定。
+   * 必ず少なくとも1本のスキットルを爆風で倒せる距離（約1.35〜2.2m）に配置する。
+   * （即座の接触爆発を防ぐため全スキットルから 1.25m 以上は離す）
+   */
+  _findBombPosition(skittles) {
+    const activeSkittles = skittles.filter(s => s.body);
+    if (activeSkittles.length === 0) {
+      return { x: 0, z: 0, found: false };
+    }
+
+    // まだ倒れていないスキットルを優先、なければ全アクティブスキットル
+    const standing = activeSkittles.filter(s => !isSkittleToppled(s.body));
+    const candidates = standing.length > 0 ? standing : activeSkittles;
+
+    // 候補スキットルをシャッフル
+    const shuffled = [...candidates].sort(() => Math.random() - 0.5);
+
+    for (const target of shuffled) {
+      const tPos = target.body.translation();
+
+      // ターゲットの周囲 1.35〜2.2 の範囲で、全スキットルと初期接触しない位置を探索
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 1.35 + Math.random() * 0.85; // 1.35〜2.20m（確実に1本倒せる距離）
+        const x = tPos.x + Math.cos(angle) * dist;
+        const z = tPos.z + Math.sin(angle) * dist;
+
+        // フィールド範囲内か（手前の投擲ライン側にはみ出さない）
+        if (z < -30 || z > 30 || Math.abs(x) > 25) continue;
+
+        // 全てのスキットルに対して、即座に接触爆発しない距離（>= 1.25）を維持
+        const safeFromAll = activeSkittles.every(s => {
+          const pos = s.body.translation();
+          return Math.hypot(pos.x - x, pos.z - z) >= 1.25;
+        });
+
+        if (safeFromAll) {
+          return { x, z, found: true };
+        }
+      }
+    }
+
+    // 密集等で見つからなかった場合のフォールバック:
+    // 最初の候補の周囲 1.4m に配置
+    const fbPos = candidates[0].body.translation();
+    const fbAngle = Math.random() * Math.PI * 2;
+    return {
+      x: fbPos.x + Math.cos(fbAngle) * 1.4,
+      z: fbPos.z + Math.sin(fbAngle) * 1.4,
+      found: false
+    };
   }
 
   /** フィールド上で既存オブジェクトと重ならない安全なランダム座標を探索 */
