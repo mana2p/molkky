@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mana2p.github.io/molkky/sitemap.xml

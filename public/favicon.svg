@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="wood" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e6c280"/>
+      <stop offset="100%" stop-color="#b07d38"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="3" stdDeviation="2" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- 背景円 -->
+  <circle cx="32" cy="32" r="30" fill="#2d6a1e" filter="url(#shadow)"/>
+  <circle cx="32" cy="32" r="27" fill="#4a8c34"/>
+  <!-- モルックのスキットル（斜めカットの木製ピン） -->
+  <path d="M22 48 L22 24 L36 14 L42 18 L42 48 Z" fill="url(#wood)" stroke="#5a3d1b" stroke-width="2" stroke-linejoin="round"/>
+  <!-- スキットル上部の斜め面 -->
+  <path d="M22 24 L36 14 L42 18 L28 28 Z" fill="#d4a35a" opacity="0.6"/>
+  <!-- 番号刻印（12） -->
+  <text x="32" y="38" font-family="'Segoe UI', Arial, sans-serif" font-weight="900" font-size="13" fill="#200c00" text-anchor="middle">12</text>
+</svg>
