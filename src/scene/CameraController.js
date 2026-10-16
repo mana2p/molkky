@@ -49,7 +49,57 @@ export class CameraController {
   }
 
   /**
-   * 棒を追いかけるカメラ。
+   * 投げる前のエイミング中カメラ制御。
+   * ガイドが画面端に行く前に、着弾予測方向へカメラを横移動（パン）させて視界を確保する。
+   * ある程度（中央付近）までは正面カメラをキープする。
+   * @param {{ x: number, z: number } | null} landingPos - 着弾予測地点（エイム中でなければ null）
+   */
+  updateAimPan(landingPos) {
+    if (this.mode !== 'OVERVIEW') return;
+
+    if (!landingPos) {
+      // エイム解除時は正面定位置へ戻る
+      this.targetPos.copy(this.overviewPos);
+      this.targetTarget.copy(this.overviewTarget);
+      this.posLerp = 0.05;
+      this.targetLerp = 0.07;
+      return;
+    }
+
+    const SLANT_DEADZONE_X = 1.6; // この範囲内なら正面カメラのまま
+    const lx = landingPos.x;
+
+    if (Math.abs(lx) > SLANT_DEADZONE_X) {
+      const sign = Math.sign(lx);
+      const excess = (Math.abs(lx) - SLANT_DEADZONE_X) * sign;
+
+      // 中央のスキットル群を見失わず、かつ端っこの着弾点と軌道をしっかり画面内に収める
+      const panX = Math.max(-4.5, Math.min(4.5, excess * 0.42));
+      const targetPanX = Math.max(-6.0, Math.min(6.0, excess * 0.52));
+
+      this.targetPos.set(
+        this.overviewPos.x + panX,
+        this.overviewPos.y,
+        this.overviewPos.z
+      );
+      this.targetTarget.set(
+        this.overviewTarget.x + targetPanX,
+        this.overviewTarget.y,
+        this.overviewTarget.z
+      );
+      this.posLerp = 0.07;
+      this.targetLerp = 0.09;
+    } else {
+      // 中央付近なら正面カメラを維持
+      this.targetPos.copy(this.overviewPos);
+      this.targetTarget.copy(this.overviewTarget);
+      this.posLerp = 0.05;
+      this.targetLerp = 0.07;
+    }
+  }
+
+  /**
+   * 棒を追いかけるカメラ（投擲後の追従演出）。
    * 着弾予測地点（landingPos）の少し手前に入ったら
    * 自動で OVERVIEW_LOCKED に切り替える。
    */

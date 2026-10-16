@@ -215,7 +215,7 @@ function handleReady() {
     gameUI.updatePowerGauge(0);
     aimGuide.hide();
 
-    // カメラを追跡モードに（着弾予測地点を渡す）
+    // カメラを追従モードに（正面・斜め問わず着弾予測地点へ追従）
     cameraController.setFollow(stickData.body, { x: landingX, y: 0, z: landingZ });
   }
 }
@@ -328,10 +328,25 @@ function updateAimAndPower() {
       const stickPos = stickData.body.translation();
       aimGuide.update(stickPos, pullInfo);
 
+      // 着弾予測地点の計算と投げる前のカメラ追従（斜めエイム時にカメラを横スライド）
+      const vel = pullInfo.throwVec;
+      const g = 9.81;
+      const maxT = (vel.y + Math.sqrt(vel.y * vel.y + 2 * g * stickPos.y)) / g;
+      const landingX = stickPos.x + vel.x * maxT;
+      const landingZ = stickPos.z + vel.z * maxT;
+      if (cameraController) {
+        cameraController.updateAimPan({ x: landingX, z: landingZ });
+      }
+
       // パワーゲージの更新
       gameUI.updatePowerGauge(pullInfo.power);
       return;
     }
+  }
+
+  // エイム中でない場合はカメラのエイムパンをリセット
+  if (cameraController && cameraController.mode === 'OVERVIEW') {
+    cameraController.updateAimPan(null);
   }
 
   aimGuide.hide();
